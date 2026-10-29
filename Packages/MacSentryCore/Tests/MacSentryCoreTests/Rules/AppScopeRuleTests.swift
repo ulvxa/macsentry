@@ -222,7 +222,10 @@ struct AppScopeRuleTests {
             #expect(match?.rule.group == expected.group, "\(expected.path)")
             #expect(match?.rule.appBundleIDs.first == expected.bundleID, "\(expected.path)")
             #expect(match?.claimsFolder == true, "\(expected.path)")
-            #expect(match?.rule.tier == .green, "\(expected.path)")
+            let unattributed = expected.group == AppScope.otherGroup
+            let reviewTier: Tier = unattributed && expected.ruleID == "appcache.libraryFallback" ? .yellow : .green
+            #expect(match?.rule.tier == reviewTier, "\(expected.path)")
+            #expect(match?.reason.contains("could not tell which app owns") == unattributed, "\(expected.path)")
             #expect(match?.action == .quarantine, "\(expected.path)")
             #expect(match?.category == .appCache, "\(expected.path)")
             #expect(match?.rule.requiresAppQuit == true, "\(expected.path)")
@@ -270,6 +273,25 @@ struct AppScopeRuleTests {
             #expect(try evaluate(engine, fixture.url(path), rules: rules)?.rule.id == ruleID, "\(path)")
         }
         #expect(try evaluate(engine, fixture.url("Library/Caches/Google"), rules: rules) == nil)
+    }
+
+    @Test func `only updater folders are attributed by their dash prefix`() throws {
+        let fixture = try FixtureBuilder(name: "AppScope")
+        for name in ["claude-cli-nodejs", "notion-cache", "claude-updater", "arc-updater"] {
+            try fixture.folder("Library/Caches/\(name)")
+        }
+        let engine = try engine(fixture.root)
+        let rules = engine.compile(engine.activeRules(inventory: Fixture.inventory, existingPaths: Kit.liveExists))
+
+        for name in ["claude-cli-nodejs", "notion-cache", "arc-updater"] {
+            let match = try #require(try evaluate(engine, fixture.url("Library/Caches/\(name)"), rules: rules), "\(name)")
+            #expect(match.rule.group == AppScope.otherGroup, "\(name)")
+            #expect(match.rule.appBundleIDs.isEmpty, "\(name)")
+            #expect(match.rule.tier == .yellow, "\(name)")
+        }
+        let updater = try evaluate(engine, fixture.url("Library/Caches/claude-updater"), rules: rules)
+        #expect(updater?.rule.group == "Claude")
+        #expect(updater?.rule.tier == .green)
     }
 
     @Test func `shared vendor folders in Caches are caches, only Apple's own folders are skipped`() throws {

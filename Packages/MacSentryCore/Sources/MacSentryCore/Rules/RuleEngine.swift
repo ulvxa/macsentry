@@ -164,6 +164,7 @@ public struct DefaultRuleEngine: RuleEngine {
         let attribution = AppAttribution(inventory)
         var active: [Rule] = []
         var perApp: [Rule] = []
+        var listings: [String: [String]] = [:]
         for rule in catalog.rules where !disabledGroups.contains(rule.group) {
             if let folder = rule.match.installedAppFolder {
                 perApp += materialize(rule, folder: folder, inventory: inventory, disabledGroups: disabledGroups)
@@ -175,6 +176,7 @@ public struct DefaultRuleEngine: RuleEngine {
                     scope: scope,
                     attribution: attribution,
                     disabledGroups: disabledGroups,
+                    listings: &listings,
                 )
                 continue
             }

@@ -203,6 +203,7 @@ struct PreparedScan: Sendable {
         let gitTrees = GitWorkTreeCache(home: home)
         let library = home.appending(path: "Library", directoryHint: .isDirectory)
         let findsOrphans = WalkRules.isInside(library.storagePath, anyOf: Set(config.roots.map(\.storagePath)))
+        let deferred = findsOrphans ? DeferredAppCaches(library: library) : nil
         var handlers: [any ScanEntryHandler] = [
             GraveyardScanHandler(collector: collector, gate: gate, claims: claims),
             RuleScanHandler(
@@ -212,7 +213,7 @@ struct PreparedScan: Sendable {
                 oldLarge: OldLargeRule(homeURL: home, isInsideGitWorkTree: gitTrees.contains),
                 gate: gate,
                 claims: claims,
-                isLeftover: findsOrphans ? leftoverCheck(library: library) : nil,
+                deferred: deferred,
             ),
         ]
         if findsOrphans {
@@ -225,6 +226,7 @@ struct PreparedScan: Sendable {
                 applicationURL: pipeline.applicationURL,
                 rules: rules,
                 gate: gate,
+                deferred: deferred,
             ))
         }
         handlers.append(DuplicateScanHandler(
@@ -238,26 +240,6 @@ struct PreparedScan: Sendable {
             isInsideProject: collector.isInsideProject,
         ))
         return handlers
-    }
-}
-
-extension PreparedScan {
-    func leftoverCheck(library: URL) -> @Sendable (URL) -> Bool {
-        let rules = rules
-        let probe = LeftoverProbe(
-            library: library,
-            matcher: DefaultOrphanDetector.matcher(inventory: apps, helperBundleIDs: helperBundleIDs, allowlist: allowlist),
-            detector: DefaultOrphanDetector(
-                sessionID: 0,
-                allowlist: allowlist,
-                policy: pipeline.protection,
-                helperBundleIDs: helperBundleIDs,
-                applicationURL: pipeline.applicationURL,
-                isClaimedByRule: { rules.claims($0) },
-                folderSize: { _ in SizeInfo(logical: 0, allocated: 0, freeable: 0) },
-            ),
-        )
-        return { probe.isLeftover($0) }
     }
 }
 

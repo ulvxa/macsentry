@@ -67,17 +67,23 @@ public struct Rule: Codable, Sendable, Identifiable, Hashable {
         verify = try container.decode(Bool.self, forKey: .verify)
     }
 
-    func with(group: String? = nil, match: Match? = nil, appBundleIDs: [String]? = nil) -> Rule {
+    func with(
+        group: String? = nil,
+        match: Match? = nil,
+        appBundleIDs: [String]? = nil,
+        tier: Tier? = nil,
+        reason: String? = nil,
+    ) -> Rule {
         Rule(
             id: id,
             group: group ?? self.group,
             category: category,
-            tier: tier,
+            tier: tier ?? self.tier,
             action: action,
             match: match ?? self.match,
             appBundleIDs: appBundleIDs ?? self.appBundleIDs,
             requiresAppQuit: requiresAppQuit,
-            reason: reason,
+            reason: reason ?? self.reason,
             cliCommand: cliCommand,
             verify: verify,
         )

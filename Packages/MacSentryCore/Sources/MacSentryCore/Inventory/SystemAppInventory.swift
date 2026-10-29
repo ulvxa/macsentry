@@ -13,15 +13,18 @@ public struct SystemAppInventory: AppInventory, AppHelperInventory {
     public let appRoots: [URL]
     public let editorRoots: [URL]
     private let runningBundleIDs: @Sendable () -> Set<String>
+    private let runningNames: @Sendable () -> [String]
 
     public init(
         appRoots: [URL],
         editorRoots: [URL] = [],
         runningBundleIDs: @escaping @Sendable () -> Set<String> = SystemAppInventory.liveRunningBundleIDs,
+        runningAppNames: @escaping @Sendable () -> [String] = SystemAppInventory.liveRunningAppNames,
     ) {
         self.appRoots = appRoots
         self.editorRoots = editorRoots
         self.runningBundleIDs = runningBundleIDs
+        runningNames = runningAppNames
     }
 
     public static func standard(homeURL: URL) -> SystemAppInventory {
@@ -68,6 +71,10 @@ public struct SystemAppInventory: AppInventory, AppHelperInventory {
         runningBundleIDs().contains(bundleID)
     }
 
+    public func runningAppNames() -> [String] {
+        runningNames()
+    }
+
     public func helperBundleIDs(of app: InstalledApp) -> [String] {
         var seen = Set<String>()
         return Self.helperFolders
@@ -79,6 +86,14 @@ public struct SystemAppInventory: AppInventory, AppHelperInventory {
     public static let liveRunningBundleIDs: @Sendable () -> Set<String> = {
         #if canImport(AppKit)
             Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
+        #else
+            []
+        #endif
+    }
+
+    public static let liveRunningAppNames: @Sendable () -> [String] = {
+        #if canImport(AppKit)
+            NSWorkspace.shared.runningApplications.flatMap { [$0.localizedName, $0.executableURL?.lastPathComponent].compactMap(\.self) }
         #else
             []
         #endif

@@ -66,7 +66,8 @@
         "excludeTopPrefixes": [
           "com.apple."
         ],
-        "vendorFolders": true
+        "vendorFolders": true,
+        "unattributedReason": "Chromium or Electron engine cache (compiled scripts, GPU shaders, service worker cache). It is rebuilt on the next launch. MacSentry could not tell which app owns this folder, so it cannot check whether that app is running. Quit the app that owns it before moving it."
       },
       "claimWholeFolder": true
     },
@@ -92,7 +93,8 @@
         "excludeTopPrefixes": [
           "com.apple."
         ],
-        "vendorFolders": true
+        "vendorFolders": true,
+        "unattributedReason": "Chromium or Electron network cache. It is downloaded again when needed. MacSentry could not tell which app owns this folder, so it cannot check whether that app is running. Quit the app that owns it before moving it."
       },
       "claimWholeFolder": true
     },
@@ -178,7 +180,9 @@
           "tipsd",
           "videosubscriptionsd",
           "WebPush"
-        ]
+        ],
+        "unattributedReason": "Cache folder of an unidentified app or tool. Review it first: tools sometimes keep more than caches here (virtual environments, browser builds). MacSentry could not tell which app owns this folder, so it cannot check whether that app is running. Quit the app that owns it before moving it.",
+        "unattributedTier": "yellow"
       },
       "claimWholeFolder": true
     },
@@ -202,7 +206,8 @@
         "maxDepth": 3,
         "excludeTopPrefixes": [
           "com.apple."
-        ]
+        ],
+        "unattributedReason": "Cache folder inside a sandboxed app's container. The app recreates it when needed. MacSentry could not tell which app owns this folder, so it cannot check whether that app is running. Quit the app that owns it before moving it."
       },
       "claimWholeFolder": true
     },
@@ -222,7 +227,8 @@
         "root": "~/Library/Application Support/Caches",
         "topNames": [
           "*-updater"
-        ]
+        ],
+        "unattributedReason": "Update download left by an app's built in updater. It is downloaded again if an update is still pending. MacSentry could not tell which app owns this folder, so it cannot check whether that app is running. Quit the app that owns it before moving it."
       },
       "claimWholeFolder": true
     },

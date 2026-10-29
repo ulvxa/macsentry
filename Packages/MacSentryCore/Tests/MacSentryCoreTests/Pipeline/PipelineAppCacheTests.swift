@@ -30,7 +30,8 @@ struct PipelineAppCacheTests {
             #expect(candidate.ruleID == expected.ruleID, "\(expected.path)")
             #expect(candidate.appBundleID == expected.bundleID, "\(expected.path)")
             #expect(candidate.group == expected.group, "\(expected.path)")
-            #expect(candidate.category == .appCache && candidate.tier == .green && candidate.action == .quarantine)
+            #expect(candidate.category == .appCache && candidate.action == .quarantine)
+            #expect(candidate.tier == .green, "\(expected.path)")
         }
         for (path, ruleID) in leftovers {
             #expect(byPath[harness.url(path).storagePath]?.first?.ruleID == ruleID, "\(path)")
@@ -107,5 +108,44 @@ struct PipelineAppCacheTests {
         #expect(candidate("Library/Caches/com.fake.recentcache")?.ruleID == "appcache.libraryFallback")
         #expect(candidate("\(support)/com.fake.stale")?.category == .orphan)
         #expect(candidate("\(support)/com.fake.stale/GPUCache") == nil)
+    }
+
+    @Test func `a cache held back for a leftover is emitted when another rule keeps the orphan pass away`() async throws {
+        let harness = try Harness("AppScopeOverlap", apps: [AppCacheFixture.app("notion.id", "Notion")])
+        let support = AppCacheFixture.support
+        try harness.fixture.file("\(support)/Steam/appcache/httpcache/blob", size: 64 * 1024)
+        try harness.fixture.file("\(support)/Steam/GPUCache/blob", size: 64 * 1024)
+        try harness.fixture.file("\(support)/Steam/zz/GPUCache/blob", size: 64 * 1024)
+
+        let summary = try await harness.scan()
+        let byPath = try await Dictionary(uniqueKeysWithValues: harness.candidates(summary.sessionID).map { ($0.url.storagePath, $0) })
+
+        #expect(byPath[harness.url("\(support)/Steam").storagePath] == nil)
+        #expect(byPath[harness.url("\(support)/Steam/appcache/httpcache").storagePath]?.ruleID == "steam.httpCache")
+        for path in ["\(support)/Steam/GPUCache", "\(support)/Steam/zz/GPUCache"] {
+            let cache = try #require(byPath[harness.url(path).storagePath], "\(path)")
+            #expect(cache.ruleID == "appcache.chromium")
+            #expect(cache.group == AppScope.otherGroup)
+            #expect(cache.freeableSize >= 64 * 1024)
+        }
+    }
+
+    @Test func `protected folders under the new rules are never emitted`() async throws {
+        let harness = try Harness(
+            "AppScopeProtected",
+            apps: AppCacheFixture.inventory,
+            neverTouch: ["**/RealtimeBoard/**", "**/com.fake.kept/**"],
+        )
+        let support = AppCacheFixture.support
+        try harness.fixture.file("\(support)/RealtimeBoard/Code Cache/blob", size: 4096)
+        try harness.fixture.file("\(support)/RealtimeBoard/Cache/Cache_Data/blob", size: 4096)
+        try harness.fixture.file("\(support)/com.fake.kept/GPUCache/blob", size: 4096)
+        try harness.fixture.file("\(support)/Notion/Partitions/notion/Code Cache/blob", size: 4096)
+
+        let summary = try await harness.scan()
+        let paths = try await Set(harness.candidates(summary.sessionID).map(\.url.storagePath))
+
+        #expect(paths.allSatisfy { !$0.contains("/RealtimeBoard") && !$0.contains("/com.fake.kept") })
+        #expect(paths.contains(harness.url("\(support)/Notion/Partitions/notion/Code Cache").storagePath))
     }
 }

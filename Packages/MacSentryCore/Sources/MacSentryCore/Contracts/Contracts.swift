@@ -28,6 +28,14 @@ public struct InstalledApp: Sendable, Hashable {
 public protocol AppInventory: Sendable {
     func installedApps() async -> [InstalledApp]
     func isRunning(bundleID: String) -> Bool
+    /// Localized and executable names of running apps, for folders no installed app could be attributed to.
+    func runningAppNames() -> [String]
+}
+
+public extension AppInventory {
+    func runningAppNames() -> [String] {
+        []
+    }
 }
 
 public enum EntryKind: String, Sendable, Codable {

@@ -12,6 +12,8 @@ public struct AppScope: Codable, Sendable, Hashable {
     public let excludeTopPrefixes: [String]?
     public let excludeTopNames: [String]?
     public let vendorFolders: Bool?
+    public let unattributedTier: Tier?
+    public let unattributedReason: String?
     /// Filled in by activeRules, never read from JSON: the lowercased `<top>` or `<top>/<second>` this copy covers.
     public let owner: String?
     public let attributed: Bool
@@ -25,6 +27,8 @@ public struct AppScope: Codable, Sendable, Hashable {
         excludeTopPrefixes: [String]? = nil,
         excludeTopNames: [String]? = nil,
         vendorFolders: Bool? = nil,
+        unattributedTier: Tier? = nil,
+        unattributedReason: String? = nil,
         owner: String? = nil,
         attributed: Bool = false,
     ) {
@@ -36,12 +40,15 @@ public struct AppScope: Codable, Sendable, Hashable {
         self.excludeTopPrefixes = excludeTopPrefixes
         self.excludeTopNames = excludeTopNames
         self.vendorFolders = vendorFolders
+        self.unattributedTier = unattributedTier
+        self.unattributedReason = unattributedReason
         self.owner = owner
         self.attributed = attributed
     }
 
     enum CodingKeys: String, CodingKey, CaseIterable {
         case root, names, maxDepth, childMarker, topNames, excludeTopPrefixes, excludeTopNames, vendorFolders
+        case unattributedTier, unattributedReason
     }
 
     public init(from decoder: any Decoder) throws {
@@ -55,8 +62,25 @@ public struct AppScope: Codable, Sendable, Hashable {
         excludeTopPrefixes = try container.decodeIfPresent([String].self, forKey: .excludeTopPrefixes)
         excludeTopNames = try container.decodeIfPresent([String].self, forKey: .excludeTopNames)
         vendorFolders = try container.decodeIfPresent(Bool.self, forKey: .vendorFolders)
+        unattributedTier = try container.decodeIfPresent(Tier.self, forKey: .unattributedTier)
+        unattributedReason = try container.decodeIfPresent(String.self, forKey: .unattributedReason)
         owner = nil
         attributed = false
+    }
+
+    private static let ownerLocations: Set = ["Application Support", "Caches", "Containers"]
+
+    /// Normalized names the app owning an unattributed app cache could run under, taken from its `<top>` folder.
+    public static func ownerKeys(ofCandidateAt url: URL) -> [String] {
+        let parts = url.standardizedFileURL.pathComponents
+        guard let library = parts.indices.first(where: {
+            parts[$0] == "Library" && $0 + 2 < parts.count && ownerLocations.contains(parts[$0 + 1])
+        }) else { return [] }
+        var top = library + 2
+        if parts[library + 1] == "Application Support", parts[top] == "Caches", top + 1 < parts.count {
+            top += 1
+        }
+        return AppAttribution.ownerKeys(of: parts[top])
     }
 
     func owned(by owner: String, attributed: Bool) -> AppScope {
@@ -69,6 +93,8 @@ public struct AppScope: Codable, Sendable, Hashable {
             excludeTopPrefixes: excludeTopPrefixes,
             excludeTopNames: excludeTopNames,
             vendorFolders: vendorFolders,
+            unattributedTier: unattributedTier,
+            unattributedReason: unattributedReason,
             owner: owner.lowercased(),
             attributed: attributed,
         )
@@ -94,6 +120,9 @@ public struct AppScope: Codable, Sendable, Hashable {
         default:
             break
         }
+        if unattributedReason?.isEmpty == true {
+            return "unattributedReason must not be empty"
+        }
         let literals = [childMarker].compactMap(\.self) + (topNames ?? []) + (excludeTopNames ?? [])
         if literals.contains(where: { $0.isEmpty || $0.contains("/") }) || childMarker?.contains("*") == true {
             return "childMarker, topNames and excludeTopNames must be single names"
@@ -104,6 +133,8 @@ public struct AppScope: Codable, Sendable, Hashable {
 
 /// Matches Library folder names to installed apps by name, bundle file name, bundle id, executable or the last bundle id part.
 struct AppAttribution {
+    private static let updaterSuffix = "-updater"
+
     private static let genericKeys: Set = [
         "app", "mac", "macos", "osx", "desktop", "client", "helper", "agent", "electron", "launcher", "application", "main",
     ]
@@ -134,8 +165,19 @@ struct AppAttribution {
         if let app = byID[lower] ?? longestIDPrefix(of: lower) ?? byKey[Self.key(top)] {
             return app
         }
-        guard let dash = top.firstIndex(of: "-") else { return nil }
-        return byKey[Self.key(String(top[..<dash]))]
+        return Self.updaterOwner(top).flatMap { byKey[$0] }
+    }
+
+    /// electron-updater names its download folder `<app>-updater`; other dashed names are not attributed by their prefix.
+    static func updaterOwner(_ top: String) -> String? {
+        guard top.lowercased().hasSuffix(updaterSuffix) else { return nil }
+        let owner = key(String(top.dropLast(updaterSuffix.count)))
+        return owner.count >= 4 ? owner : nil
+    }
+
+    /// Normalized names a running app could have for an unattributed `<top>` folder, used to block moves while it runs.
+    static func ownerKeys(of top: String) -> [String] {
+        [key(top), updaterOwner(top)].compactMap { $0.flatMap { $0.count >= 3 ? $0 : nil } }
     }
 
     func app(top: String, second: String) -> InstalledApp? {
@@ -193,24 +235,38 @@ extension DefaultRuleEngine {
         scope: AppScope,
         attribution: AppAttribution,
         disabledGroups: Set<String>,
+        listings: inout [String: [String]],
     ) -> [Rule] {
         let rootURL = URL(filePath: PathPattern.expand(scope.root, home: homePath), directoryHint: .isDirectory)
+        func list(_ url: URL) -> [String] {
+            if let cached = listings[url.storagePath] {
+                return cached
+            }
+            let names = fileSystem.contentsOfDirectory(url).sorted()
+            listings[url.storagePath] = names
+            return names
+        }
         var rules: [Rule] = []
         func add(_ owner: String, app: InstalledApp?, top: String) {
             let group = app?.name ?? AppScope.otherGroup
             guard !disabledGroups.contains(group) else { return }
             let bundleIDs = app.map { [$0.bundleID] } ?? (OrphanMatcher.isReverseDNS(top) ? [top] : [])
             let match = rule.match.with(paths: nil, referenceVersion: nil, appScope: scope.owned(by: owner, attributed: app != nil))
-            rules.append(rule.with(group: group, match: match, appBundleIDs: bundleIDs))
+            rules.append(rule.with(
+                group: group,
+                match: match,
+                appBundleIDs: bundleIDs,
+                tier: app == nil ? scope.unattributedTier : nil,
+                reason: app == nil ? scope.unattributedReason : nil,
+            ))
         }
-        for top in fileSystem.contentsOfDirectory(rootURL).sorted() where Self.includes(top, in: scope) {
+        for top in list(rootURL) where Self.includes(top, in: scope) {
             if let app = attribution.app(top: top) {
                 add(top, app: app, top: top)
                 continue
             }
             if scope.vendorFolders == true {
-                for second in fileSystem.contentsOfDirectory(rootURL.appending(path: top, directoryHint: .isDirectory)).sorted()
-                    where !second.hasPrefix(".") {
+                for second in list(rootURL.appending(path: top, directoryHint: .isDirectory)) where !second.hasPrefix(".") {
                     if let app = attribution.app(top: top, second: second) {
                         add(top + "/" + second, app: app, top: top)
                     }
