@@ -74,7 +74,7 @@ private struct TreemapCanvasView: View {
                 TreemapPainter(tiles: tiles, palette: palette, hoveredID: model.hoveredTile?.id).paint(&context)
             } symbols: {
                 ForEach(Tier.allCases, id: \.self) { tier in
-                    Image(systemName: tier.treemapSymbol)
+                    Image(systemName: tier.systemImage)
                         .font(.caption)
                         .foregroundStyle(.primary)
                         .tag(tier)
@@ -144,7 +144,7 @@ private struct TreemapTooltip: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             if let tier = item.tier {
-                Label(tier.treemapWord, systemImage: tier.treemapSymbol)
+                Label(tier.word, systemImage: tier.systemImage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

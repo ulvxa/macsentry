@@ -17,6 +17,8 @@ public final class ScanControl: Sendable {
     private struct State {
         var skipped = false
         var cancelHashing: (@Sendable () -> Void)?
+        var cancelled = false
+        var cancelScan: (@Sendable () -> Void)?
     }
 
     public let hashingProgress: AsyncStream<HashingProgress>
@@ -37,6 +39,32 @@ public final class ScanControl: Sendable {
             return state.cancelHashing
         }
         cancel?()
+    }
+
+    public var isCancelled: Bool {
+        state.withLock(\.cancelled)
+    }
+
+    /// False when no scan registered a handler, so the caller has to cancel its consuming task instead.
+    @discardableResult
+    public func cancel() -> Bool {
+        let cancel = state.withLock { state in
+            state.cancelled = true
+            return state.cancelScan
+        }
+        cancel?()
+        return cancel != nil
+    }
+
+    /// Scan services call this to stop their work and then finish their stream once their state is saved.
+    public func attachCancel(_ cancel: @escaping @Sendable () -> Void) {
+        let cancelled = state.withLock { state in
+            state.cancelScan = cancel
+            return state.cancelled
+        }
+        if cancelled {
+            cancel()
+        }
     }
 
     func attachHashing(cancel: @escaping @Sendable () -> Void) {

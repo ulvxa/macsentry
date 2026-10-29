@@ -184,6 +184,7 @@ struct PreparedScan: Sendable {
             walker: pipeline.walker,
             lastUsedResolver: pipeline.lastUsedResolver,
             progressInterval: pipeline.progressInterval,
+            control: control,
             makeHandlers: makeHandlers,
         )
     }
@@ -245,10 +246,15 @@ struct PipelineScanService: ScanService {
 
     func scan(config: ScanConfig) -> AsyncThrowingStream<ScanEvent, Error> {
         let (stream, continuation) = AsyncThrowingStream.makeStream(of: ScanEvent.self, throwing: Error.self)
+        control.attachCancel {}
         let task = Task { [pipeline, options, control] in
             defer { control.end() }
             do {
                 let prepared = try await pipeline.prepare(options, control: control)
+                guard !control.isCancelled else {
+                    continuation.finish()
+                    return
+                }
                 for try await event in prepared.service.scan(config: config) {
                     continuation.yield(event)
                 }

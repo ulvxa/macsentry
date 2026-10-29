@@ -68,7 +68,7 @@ private struct EntryDetails: View {
                     Text(row.batch.batch.createdAt.formatted(QuarantineRow.batchDateStyle))
                         .font(.callout)
                     if row.isDryRun {
-                        DryRunTag()
+                        DryRunBadge(style: .tag)
                     }
                 }
                 Text("Rule \(entry.ruleID)")
@@ -91,7 +91,7 @@ private struct BatchDetails: View {
                 HStack(spacing: Space.s) {
                     Text(row.name).font(.title3.weight(.semibold))
                     if row.isDryRun {
-                        DryRunTag()
+                        DryRunBadge(style: .tag)
                     }
                 }
                 SizeText(row.size, style: .card)

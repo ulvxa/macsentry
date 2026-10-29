@@ -12,17 +12,21 @@ public actor TestQuarantineService: QuarantineService {
     public var readError: QuarantineServiceError?
     public let quarantineRoot: URL
     public let isDryRun: Bool
+    private let candidateStore: (any CandidateStore)?
     private let now: @Sendable () -> Date
 
+    /// Pass `candidates` to record status changes on moved, trashed and restored rows like the real service does.
     public init(
         quarantineRoot: URL = URL(filePath: "/MacSentry Quarantine", directoryHint: .isDirectory),
         isDryRun: Bool = false,
         moveFailures: [URL: MoveFailure] = [:],
+        candidates: (any CandidateStore)? = nil,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.quarantineRoot = quarantineRoot
         self.isDryRun = isDryRun
         self.moveFailures = moveFailures
+        candidateStore = candidates
         self.now = now
     }
 
@@ -71,18 +75,21 @@ public actor TestQuarantineService: QuarantineService {
         guard !moved.isEmpty else { return QuarantineResult(batchID: nil, moved: [], failed: failed) }
         batches.append(batch)
         entries.append(contentsOf: moved)
+        try? await candidateStore?.setStatus(.quarantined, ids: moved.compactMap(\.candidateID))
         return QuarantineResult(batchID: batchID, moved: moved, failed: failed)
     }
 
     public func trash(_ entryIDs: [Int64]) async -> TrashResult {
         trashCalls.append(entryIDs)
         let outcome = transition(entryIDs, to: .trashed)
+        try? await candidateStore?.setStatus(.trashed, ids: outcome.done.compactMap(\.candidateID))
         return TrashResult(trashed: outcome.done, failed: outcome.failed)
     }
 
     public func restore(_ entryIDs: [Int64]) async -> RestoreResult {
         restoreCalls.append(entryIDs)
         let outcome = transition(entryIDs, to: .restored)
+        try? await candidateStore?.setStatus(.found, ids: outcome.done.compactMap(\.candidateID))
         return RestoreResult(restored: outcome.done, failed: outcome.failed)
     }
 

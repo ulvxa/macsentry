@@ -53,6 +53,20 @@ public struct GRDBCandidateStore: CandidateStore {
         try await read { db in try Self.fetchTotals(db, session: session) }
     }
 
+    public func actionTotals(session: Int64) async throws -> SessionTotals {
+        try await read { db in try Self.fetchActionTotals(db, session: session) }
+    }
+
+    public func total(session: Int64, filter: CandidateFilter) async throws -> CategoryTotal {
+        let query = CandidateQuery(filter: filter, sort: .default, limit: nil, offset: 0)
+        let now = now()
+        return try await read { db in
+            let (sql, arguments) = query.totalSQL(session: session, now: now)
+            guard let row = try Row.fetchOne(db, sql: sql, arguments: arguments) else { return .zero }
+            return CategoryTotal(count: row["item_count"], freeable: row["freeable"])
+        }
+    }
+
     public func topOffenders(session: Int64, category: Category, limit: Int) async throws -> [Candidate] {
         try await read { db in
             try Candidate.fetchAll(db, sql: """
@@ -87,9 +101,9 @@ public struct GRDBCandidateStore: CandidateStore {
         return stream(observation)
     }
 
-    public func observeTotals(session: Int64) -> AsyncThrowingStream<[Category: CategoryTotal], Error> {
+    public func observeActionTotals(session: Int64) -> AsyncThrowingStream<SessionTotals, Error> {
         let observation = ValueObservation.tracking { db in
-            try Self.fetchTotals(db, session: session)
+            try Self.fetchActionTotals(db, session: session)
         }
         .removeDuplicates()
         return stream(observation)
@@ -208,6 +222,21 @@ public struct GRDBCandidateStore: CandidateStore {
             let raw: String = row["category"]
             guard let category = Category(rawValue: raw) else { continue }
             totals[category] = CategoryTotal(count: row["item_count"], freeable: row["freeable"])
+        }
+        return totals
+    }
+
+    private static func fetchActionTotals(_ db: GRDB.Database, session: Int64) throws -> SessionTotals {
+        let rows = try Row.fetchAll(db, sql: """
+        SELECT category, action, COUNT(*) AS item_count, COALESCE(SUM(freeable_size), 0) AS freeable
+        FROM candidate WHERE session_id = ? AND status = 'found' GROUP BY category, action
+        """, arguments: [session])
+        var totals = SessionTotals()
+        for row in rows {
+            let rawCategory: String = row["category"]
+            let rawAction: String = row["action"]
+            guard let category = Category(rawValue: rawCategory), let action = CandidateAction(rawValue: rawAction) else { continue }
+            totals.add(CategoryTotal(count: row["item_count"], freeable: row["freeable"]), category: category, action: action)
         }
         return totals
     }

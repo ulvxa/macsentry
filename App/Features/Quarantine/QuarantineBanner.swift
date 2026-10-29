@@ -81,7 +81,7 @@ struct QuarantineHints: View {
         }
         if dryRun > 0 || model.app.environment.isDryRun {
             HStack(spacing: Space.m) {
-                DryRunTag()
+                DryRunBadge(style: .tag)
                 Text(dryRun > 0
                     ? "\(ByteFormat.string(dryRun)) recorded by dry runs. Nothing was moved, so it is not counted above."
                     : "Dry run is on. Real batches can't be trashed or restored.")
@@ -109,16 +109,4 @@ private func untrackedMessage(_ count: Int) -> String {
     count == 1
         ? "1 untracked item is in the quarantine folder. It was left in place."
         : "\(count.formatted()) untracked items are in the quarantine folder. They were left in place."
-}
-
-struct DryRunTag: View {
-    var body: some View {
-        Label("Dry run", systemImage: "eye")
-            .font(.caption.weight(.medium))
-            .padding(.horizontal, Space.s)
-            .padding(.vertical, Space.xs / 2)
-            .background(.quaternary, in: .capsule)
-            .help("Dry run batches never moved anything on disk")
-            .accessibilityLabel("Dry run")
-    }
 }

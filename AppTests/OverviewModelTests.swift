@@ -24,13 +24,13 @@ struct OverviewHarness {
     ) async throws {
         fixture = try FixtureBuilder(name: name)
         let settings = try SettingsStore(defaults: fixture.isolatedDefaults(), homeURL: fixture.root)
-        app = try AppModel(environment: fixture.environment(), settingsStore: settings)
+        app = try AppModel(environment: fixture.environment(), settingsStore: settings, notifier: SilentLowSpaceNotifier())
         store = InMemoryCandidateStore(
             sessions: sessions ?? [ScanSession(id: 1, startedAt: Date(), finishedAt: Date(), status: .finished, roots: [fixture.root])],
             candidates: candidates,
             dirNodes: dirNodes,
         )
-        quarantine = TestQuarantineService()
+        quarantine = TestQuarantineService(candidates: store)
         sampler = FakeVolumeSampler(VolumeCapacity(
             total: 500 * Self.gigabyte,
             available: 180 * Self.gigabyte,

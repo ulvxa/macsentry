@@ -254,11 +254,11 @@ struct DuplicatesScanTests {
             ),
         )
         let settings = try SettingsStore(defaults: fixture.isolatedDefaults(), homeURL: fixture.root)
-        let app = AppModel(environment: environment, settingsStore: settings)
+        let app = AppModel(environment: environment, settingsStore: settings, notifier: SilentLowSpaceNotifier())
         let store = GRDBCandidateStore(database: database)
         await app.attach(AppServices(
             candidates: store,
-            quarantine: TestQuarantineService(),
+            quarantine: TestQuarantineService(candidates: store),
             neverTouch: InMemoryNeverTouchStore(),
             inventory: inventory,
             protection: protection,

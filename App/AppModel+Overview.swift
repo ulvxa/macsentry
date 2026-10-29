@@ -4,7 +4,7 @@ import MacSentryCore
 extension AppModel {
     var reclaimableBytes: Int64? {
         guard currentSessionID != nil else { return nil }
-        return totals.filter { $0.key != .flagged }.values.reduce(0) { $0 + $1.freeable }
+        return totals.reclaimable.freeable
     }
 
     func refreshLocalSnapshots() async {

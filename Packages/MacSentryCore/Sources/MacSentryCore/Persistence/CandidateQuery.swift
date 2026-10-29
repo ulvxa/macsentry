@@ -11,6 +11,27 @@ struct CandidateQuery: Sendable {
     private static let basename = "substr(path, length(rtrim(path, replace(path, '/', ''))) + 1)"
 
     func sql(session: Int64, now: Date) -> (sql: String, arguments: StatementArguments) {
+        var (sql, values) = whereClause(session: session, now: now)
+        sql = "SELECT * FROM candidate WHERE " + sql
+        sql += " ORDER BY \(Self.orderExpression(sort.column)) \(sort.ascending ? "ASC" : "DESC"), id ASC"
+        if let limit {
+            sql += " LIMIT ? OFFSET ?"
+            values.append(max(limit, 0))
+            values.append(max(offset, 0))
+        } else if offset > 0 {
+            sql += " LIMIT -1 OFFSET ?"
+            values.append(offset)
+        }
+        return (sql, StatementArguments(values))
+    }
+
+    func totalSQL(session: Int64, now: Date) -> (sql: String, arguments: StatementArguments) {
+        let (clause, values) = whereClause(session: session, now: now)
+        let sql = "SELECT COUNT(*) AS item_count, COALESCE(SUM(freeable_size), 0) AS freeable FROM candidate WHERE " + clause
+        return (sql, StatementArguments(values))
+    }
+
+    private func whereClause(session: Int64, now: Date) -> (String, [(any DatabaseValueConvertible)?]) {
         var clauses = ["session_id = ?"]
         var values: [(any DatabaseValueConvertible)?] = [session]
 
@@ -21,6 +42,7 @@ struct CandidateQuery: Sendable {
         }
         addIn("category", filter.categories.map(\.rawValue).sorted())
         addIn("tier", filter.tiers.map(\.rawValue).sorted())
+        addIn("action", filter.actions.map(\.rawValue).sorted())
         addIn("status", filter.statuses.map(\.rawValue).sorted())
 
         if filter.minFreeable > 0 {
@@ -35,18 +57,7 @@ struct CandidateQuery: Sendable {
             clauses.append("path LIKE ? ESCAPE '\\'")
             values.append("%" + Self.escapeLike(term) + "%")
         }
-
-        var sql = "SELECT * FROM candidate WHERE " + clauses.joined(separator: " AND ")
-        sql += " ORDER BY \(Self.orderExpression(sort.column)) \(sort.ascending ? "ASC" : "DESC"), id ASC"
-        if let limit {
-            sql += " LIMIT ? OFFSET ?"
-            values.append(max(limit, 0))
-            values.append(max(offset, 0))
-        } else if offset > 0 {
-            sql += " LIMIT -1 OFFSET ?"
-            values.append(offset)
-        }
-        return (sql, StatementArguments(values))
+        return (clauses.joined(separator: " AND "), values)
     }
 
     static func ageExpression(_ basis: AgeBasis) -> String {

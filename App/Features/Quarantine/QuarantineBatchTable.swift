@@ -114,7 +114,7 @@ private struct QuarantineNameCell: View {
                     .fontWeight(.semibold)
                     .lineLimit(1)
                 if row.isDryRun {
-                    DryRunTag()
+                    DryRunBadge(style: .tag)
                 }
             }
         }

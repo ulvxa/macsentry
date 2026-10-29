@@ -66,7 +66,7 @@ private struct OrphanTable: View {
             TableColumn("") { row in
                 CheckboxCell(
                     state: model.checkState(of: row),
-                    isEnabled: row.candidate.map(model.isCheckable) ?? row.candidates.contains(where: model.isCheckable),
+                    isEnabled: model.canToggle(row),
                     label: "Select \(row.name)",
                 ) {
                     model.toggleCheck(row)

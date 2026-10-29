@@ -49,6 +49,7 @@ final class CandidateListModel {
 
     @ObservationIgnored private var seenIDs: Set<Int64> = []
     @ObservationIgnored private var queryTask: Task<Void, Never>?
+    @ObservationIgnored private var queriedFilter: CandidateFilter?
 
     init(configuration: CandidateListConfiguration, app: AppModel) {
         self.configuration = configuration
@@ -90,14 +91,18 @@ final class CandidateListModel {
     }
 
     func thresholdsChanged(to thresholds: Thresholds) {
-        guard configuration.usesThresholdFilters else { return }
-        let updated = FilterState(thresholds: thresholds)
-        var next = filter
-        next.minAgeDays = updated.minAgeDays
-        next.minSizeBytes = updated.minSizeBytes
-        defaultFilter.minAgeDays = updated.minAgeDays
-        defaultFilter.minSizeBytes = updated.minSizeBytes
-        filter = next
+        if configuration.usesThresholdFilters {
+            let updated = FilterState(thresholds: thresholds)
+            var next = filter
+            next.minAgeDays = updated.minAgeDays
+            next.minSizeBytes = updated.minSizeBytes
+            defaultFilter.minAgeDays = updated.minAgeDays
+            defaultFilter.minSizeBytes = updated.minSizeBytes
+            filter = next
+        }
+        if candidateFilter != queriedFilter {
+            scheduleQuery(debounce: true)
+        }
     }
 
     func retry() {
@@ -108,12 +113,18 @@ final class CandidateListModel {
     // MARK: Query
 
     var candidateFilter: CandidateFilter {
-        filter.candidateFilter(categories: configuration.categories, controls: configuration.controls, ageBasis: app.settings.ageBasis)
+        filter.candidateFilter(
+            categories: configuration.categories,
+            actions: configuration.actions,
+            controls: configuration.controls,
+            ageBasis: app.settings.ageBasis,
+        )
     }
 
     private func scheduleQuery(debounce: Bool) {
         queryTask?.cancel()
         queryTask = nil
+        queriedFilter = candidateFilter
         guard let sessionID, let store = app.services?.candidates else {
             receive([])
             return
@@ -146,7 +157,7 @@ final class CandidateListModel {
     }
 
     private func receive(_ value: [Candidate]) {
-        let visible = value.filter { configuration.actions.contains($0.action) && $0.id != nil }
+        let visible = value.filter { $0.id != nil }
         blockedBundleIDs = app.runningApps(among: Set(visible.compactMap(\.appBundleID)))
         for candidate in visible {
             guard let id = candidate.id, !seenIDs.contains(id) else { continue }
@@ -222,7 +233,15 @@ final class CandidateListModel {
         return checked == ids.count ? .on : .mixed
     }
 
+    func canToggle(_ row: CandidateRow) -> Bool {
+        if let candidate = row.candidate {
+            return isCheckable(candidate)
+        }
+        return !configuration.groupCheckDisabled.contains(row.name) && row.candidates.contains(where: isCheckable)
+    }
+
     func toggleCheck(_ row: CandidateRow) {
+        guard canToggle(row) else { return }
         let ids = row.candidates.filter(isCheckable).compactMap(\.id)
         if checkState(of: row) == .on {
             checkedIDs.subtract(ids)

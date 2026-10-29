@@ -5,6 +5,7 @@ struct ThresholdsSettingsView: View {
     private static let agePresets = [30, 90, 180, 365]
 
     @Environment(AppModel.self) private var model
+    @State private var preview = ThresholdPreviewModel()
 
     var body: some View {
         @Bindable var settings = model.settings
@@ -64,12 +65,22 @@ struct ThresholdsSettingsView: View {
                     Text("Created").tag(AgeBasis.created)
                 }
             } footer: {
-                Text("Changes apply to list filters instantly. Rules use the values captured when a scan starts.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    if let text = preview.text {
+                        Text(text)
+                            .monospacedDigit()
+                            .foregroundStyle(.primary)
+                    }
+                    Text("Changes apply to list filters instantly. Rules use the values captured when a scan starts.")
+                        .foregroundStyle(.secondary)
+                }
+                .font(.caption)
             }
         }
         .formStyle(.grouped)
+        .task(id: ThresholdPreviewModel.key(for: model)) {
+            await preview.refresh(app: model)
+        }
     }
 
     @ViewBuilder

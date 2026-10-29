@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import MacSentryCore
 import MacSentryTestSupport
@@ -39,6 +40,7 @@ struct MenuBarTests {
         let model = try AppModel(
             environment: fixture.environment(),
             settingsStore: SettingsStore(defaults: fixture.isolatedDefaults(), homeURL: fixture.root),
+            notifier: SilentLowSpaceNotifier(),
         )
         let delegate = AppDelegate()
         delegate.connect(to: model)
@@ -46,6 +48,14 @@ struct MenuBarTests {
         #expect(!delegate.applicationShouldTerminateAfterLastWindowClosed(.shared))
         model.settings.menuBarEnabled = false
         #expect(delegate.applicationShouldTerminateAfterLastWindowClosed(.shared))
+    }
+
+    @Test func `launch installs the notification delegate through the injected hook`() {
+        let delegate = AppDelegate()
+        var installed: NotificationResponder?
+        delegate.installNotificationDelegate = { installed = $0 }
+        delegate.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
+        #expect(installed === delegate.notificationResponder)
     }
 
     @Test func `compact free space formatting`() {

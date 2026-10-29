@@ -45,7 +45,7 @@ private struct QuarantineScreenHarness {
         try arguments += ["-MacSentryDatabasePath", fixture.url("db/macsentry.sqlite").path(percentEncoded: false)]
         let environment = AppEnvironment(arguments: arguments, realHomeURL: fixture.root)
         let settings = try SettingsStore(defaults: fixture.isolatedDefaults(), homeURL: home)
-        app = AppModel(environment: environment, settingsStore: settings)
+        app = AppModel(environment: environment, settingsStore: settings, notifier: SilentLowSpaceNotifier())
         let service = try DefaultQuarantineService(
             database: Database.inMemory(),
             quarantineRoot: DefaultQuarantineService.quarantineRoot(home: home),

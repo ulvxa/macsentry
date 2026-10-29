@@ -10,16 +10,23 @@ extension AppModel {
         }
     }
 
-    var scanActivity: ScanActivity? {
-        if case let .scanning(activity) = scanState {
-            activity
+    var isCancellingScan: Bool {
+        if case .cancelling = scanState {
+            true
         } else {
-            nil
+            false
+        }
+    }
+
+    var scanActivity: ScanActivity? {
+        switch scanState {
+        case let .scanning(activity), let .cancelling(activity): activity
+        case .idle, .finished, .cancelled, .failed: nil
         }
     }
 
     var canStartScan: Bool {
-        services != nil && !isScanning
+        services != nil && scanActivity == nil
     }
 
     var statusOverlay: StatusOverlay {
@@ -44,7 +51,7 @@ extension AppModel {
     }
 
     func startScan() {
-        guard let services, !isScanning else { return }
+        guard let services, canStartScan else { return }
         let config = services.scanConfig(settings.scanRoots)
         let control = ScanControl()
         let stream = services.makeScanService(scanOptions, control).scan(config: config)
@@ -69,16 +76,13 @@ extension AppModel {
         scanState = .scanning(activity)
     }
 
+    /// Stays cancelling until the scan stream ends, so a new scan never overlaps the old one's final writes.
     func cancelScan() {
-        guard isScanning else { return }
-        scanTask?.cancel()
-        scanTask = nil
-        if let scanControl {
-            release(scanControl)
+        guard case let .scanning(activity) = scanState else { return }
+        scanState = .cancelling(activity)
+        if scanControl?.cancel() != true {
+            scanTask?.cancel()
         }
-        runningSessionID = nil
-        scanState = .cancelled
-        toast = Toast(kind: .scanCancelled(hasPreviousResults: currentSessionID != nil))
     }
 
     /// Waits for the running scan task. Tests use it; the UI never blocks on a scan.
@@ -103,25 +107,29 @@ extension AppModel {
         defer { release(control) }
         do {
             for try await event in stream {
-                if Task.isCancelled {
-                    return
-                }
-                if case let .finished(summary) = event {
+                switch event {
+                case let .finished(summary):
                     await complete(summary)
                     return
+                case .started:
+                    apply(event)
+                    await reloadSessions(preferring: nil)
+                default:
+                    apply(event)
                 }
-                apply(event)
             }
         } catch {
-            guard !Task.isCancelled else { return }
-            runningSessionID = nil
-            scanState = .failed(error.localizedDescription)
-            toast = Toast(kind: .scanFailed(error.localizedDescription))
-            return
+            if !isCancellingScan, !Task.isCancelled {
+                runningSessionID = nil
+                scanState = .failed(error.localizedDescription)
+                toast = Toast(kind: .scanFailed(error.localizedDescription))
+                await reloadSessions(preferring: nil)
+                return
+            }
         }
-        guard !Task.isCancelled, isScanning else { return }
         runningSessionID = nil
         scanState = .cancelled
+        await reloadSessions(preferring: nil)
         toast = Toast(kind: .scanCancelled(hasPreviousResults: currentSessionID != nil))
     }
 
@@ -173,10 +181,12 @@ extension AppModel {
             await refreshLocalSnapshots()
         case .cancelled, .running:
             scanState = .cancelled
+            await reloadSessions(preferring: nil)
             toast = Toast(kind: .scanCancelled(hasPreviousResults: currentSessionID != nil))
         case .failed:
             scanState = .failed("The scan stopped before it finished.")
             toast = Toast(kind: .scanFailed("The scan stopped before it finished."))
+            await reloadSessions(preferring: nil)
         }
     }
 }

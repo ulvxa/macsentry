@@ -69,6 +69,7 @@ enum RuleGroups {
 enum ScanState: Equatable {
     case idle
     case scanning(ScanActivity)
+    case cancelling(ScanActivity)
     case finished(ScanSummary)
     case cancelled
     case failed(String)

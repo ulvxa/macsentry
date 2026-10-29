@@ -11,7 +11,12 @@ extension DuplicatesModel {
 
     func requestQuarantine() {
         guard quarantineDisabledReason == nil else { return }
-        confirmation = QuarantineConfirmation(candidates: checkedCandidates, isDryRun: app.environment.isDryRun, noun: "duplicates")
+        confirmation = QuarantineConfirmation(
+            candidates: checkedCandidates,
+            isDryRun: app.environment.isDryRun,
+            destination: app.quarantineFolderDisplay,
+            noun: "duplicates",
+        )
     }
 
     func confirm(_ confirmation: QuarantineConfirmation) async {

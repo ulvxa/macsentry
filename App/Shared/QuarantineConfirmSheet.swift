@@ -15,10 +15,12 @@ struct QuarantineConfirmation: Identifiable {
     let nonSafeCount: Int
     let preview: [Item]
     let isDryRun: Bool
+    let destination: String
 
-    init(candidates: [Candidate], isDryRun: Bool, noun: String = "items") {
+    init(candidates: [Candidate], isDryRun: Bool, destination: String, noun: String = "items") {
         self.candidates = candidates
         self.isDryRun = isDryRun
+        self.destination = destination
         title = candidates.count == 1 ? "Quarantine \(candidates[0].name)?" : "Quarantine \(candidates.count.formatted()) \(noun)?"
         totalBytes = candidates.reduce(0) { $0 + $1.freeableSize }
         nonSafeCount = candidates.count { $0.tier != .green }
@@ -27,6 +29,10 @@ struct QuarantineConfirmation: Identifiable {
 
     var remainingCount: Int {
         candidates.count - preview.count
+    }
+
+    var message: String {
+        "\(ByteFormat.string(totalBytes)) moves to \(destination). Nothing is deleted, and you can restore it."
     }
 }
 
@@ -40,8 +46,7 @@ struct QuarantineConfirmSheet: View {
         VStack(alignment: .leading, spacing: Space.l) {
             Text(confirmation.title)
                 .font(.title3.weight(.semibold))
-            Text("\(ByteFormat.string(confirmation.totalBytes)) moves to ~/MacSentry Quarantine. " +
-                "Nothing is deleted, and you can restore it.")
+            Text(confirmation.message)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
