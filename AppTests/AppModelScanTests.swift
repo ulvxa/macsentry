@@ -51,8 +51,8 @@ struct AppModelScanTests {
         let harness = try await CandidateHarness(name: "ScanCancel") { HangingScanService(sessionID: 2) }
         let app = harness.app
         app.startScan()
-        #expect(try await eventually { app.runningSessionID == 2 })
-        #expect(try await eventually { app.scanActivity?.filesVisited == 42 })
+        #expect(await eventually { app.runningSessionID == 2 })
+        #expect(await eventually { app.scanActivity?.filesVisited == 42 })
 
         app.cancelScan()
         await app.waitForScan()
@@ -84,7 +84,7 @@ struct AppModelScanTests {
         }
         let app = harness.app
         app.startScan()
-        #expect(try await eventually { app.runningSessionID == 2 })
+        #expect(await eventually { app.runningSessionID == 2 })
 
         #expect(app.quarantineBlockReason(for: [running]) == "Wait for the scan to finish")
         #expect(await app.quarantine([running]) == nil)
@@ -118,7 +118,7 @@ struct AppModelScanTests {
             CandidateHarness.candidate(id: 3, name: "C", category: .appCache, ruleID: "app.cache", size: 500_000_000),
         ])
         let app = harness.app
-        #expect(try await eventually { app.badgeBytes(for: .devCaches) == 3_000_000_000 })
+        #expect(await eventually { app.badgeBytes(for: .devCaches) == 3_000_000_000 })
         #expect(app.badgeBytes(for: .appCaches) == 500_000_000)
         #expect(app.total(for: .devCaches)?.count == 2)
         #expect(app.badgeBytes(for: .overview) == nil)

@@ -54,8 +54,23 @@ struct GeneralSettingsView: View {
             }
 
             Section("Menu Bar and Login") {
+                let loginItem = model.menuBar.loginItem
                 Toggle("Show in menu bar", isOn: $settings.menuBarEnabled)
-                Toggle("Launch at login", isOn: $settings.launchAtLogin)
+                Toggle("Show free space in menu bar", isOn: $settings.menuBarShowText)
+                    .disabled(!settings.menuBarEnabled)
+                Toggle("Launch at login", isOn: Binding(get: { loginItem.isOn }, set: { loginItem.setEnabled($0) }))
+                if loginItem.needsApproval {
+                    Text("macOS needs your approval before MacSentry can open at login.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                    Button("Open Login Items") { loginItem.openSystemSettings() }
+                        .buttonStyle(.glass)
+                }
+                if let message = loginItem.errorMessage {
+                    Label(message, systemImage: "exclamationmark.triangle")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .formStyle(.grouped)
@@ -64,7 +79,11 @@ struct GeneralSettingsView: View {
                 settings.addScanRoots(urls)
             }
         }
-        .onAppear { model.refreshPermissions() }
+        .onAppear {
+            model.refreshPermissions()
+            model.menuBar.loginItem.refresh()
+        }
+        .refreshOnActivate { model.menuBar.loginItem.refresh() }
     }
 
     private static func exists(_ url: URL) -> Bool {

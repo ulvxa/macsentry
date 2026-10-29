@@ -28,6 +28,7 @@ final class AppModel {
     let environment: AppEnvironment
     let settings: SettingsModel
     let permissions: any PermissionService
+    let menuBar: MenuBarModel
     var selection: SidebarItem? = .overview
     var alert: AppAlert?
     var isOnboardingPresented = false
@@ -73,7 +74,18 @@ final class AppModel {
         self.permissions = permissions ?? SystemPermissionService(homeURL: environment.homeURL) { url in
             Task { @MainActor in NSWorkspace.shared.open(url) }
         }
+        menuBar = MenuBarModel(settings: settings)
         refreshPermissions()
+        connectMenuBar()
+    }
+
+    private func connectMenuBar() {
+        menuBar.scanStatus = { [weak self] in
+            guard let self, isReady else { return .unavailable }
+            return scanActivity.map { .scanning(files: $0.filesVisited) } ?? .idle
+        }
+        menuBar.startScan = { [weak self] in self?.startScan() }
+        menuBar.cancelScan = { [weak self] in self?.cancelScan() }
     }
 
     var showsLimitedModeBadge: Bool {
@@ -116,6 +128,7 @@ final class AppModel {
                 neverTouch: store,
                 inventory: inventory,
             ))
+            await menuBar.attach(database: opened, environment: environment, protection: provider)
             if let backup = opened.corruptBackupURL {
                 alert = AppAlert(
                     title: "Database Was Reset",

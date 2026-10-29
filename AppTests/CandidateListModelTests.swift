@@ -12,10 +12,10 @@ struct CandidateListModelTests {
         ])
         let model = harness.list(.devCaches)
         #expect(model.filter.minAgeDays == 180)
-        #expect(try await eventually { model.candidates.map(\.id) == [1] })
+        #expect(await eventually { model.candidates.map(\.id) == [1] })
 
         model.filter.minAgeDays = 30
-        #expect(try await eventually { Set(model.candidates.compactMap(\.id)) == [1, 2] })
+        #expect(await eventually { Set(model.candidates.compactMap(\.id)) == [1, 2] })
         #expect(harness.scans.options.isEmpty)
         #expect(harness.app.scanState == .idle)
     }
@@ -33,10 +33,10 @@ struct CandidateListModelTests {
         #expect(model.filter.minSizeBytes == 1_000_000_000)
         #expect(model.candidateFilter.minFreeable == 1_000_000_000)
         #expect(model.candidateFilter.categories == [.devCache])
-        #expect(try await eventually { model.candidates.map(\.id) == [1] })
+        #expect(await eventually { model.candidates.map(\.id) == [1] })
 
         model.filter.minSizeBytes = SizeStops.values[0]
-        #expect(try await eventually { model.candidates.count == 2 })
+        #expect(await eventually { model.candidates.count == 2 })
     }
 
     @Test func `default selection is green only and never for orphans`() async throws {
@@ -47,12 +47,12 @@ struct CandidateListModelTests {
             CandidateHarness.candidate(id: 4, name: "Leftover", category: .orphan, ruleID: "orphan.caches", tier: .green),
         ])
         let caches = harness.list(.devCaches)
-        #expect(try await eventually { caches.candidates.count == 3 })
+        #expect(await eventually { caches.candidates.count == 3 })
         #expect(caches.checkedIDs == [1])
         #expect(caches.primaryTitle == "Quarantine 1 item, 1 GB")
 
         let orphans = harness.list(.orphans)
-        #expect(try await eventually { orphans.candidates.count == 1 })
+        #expect(await eventually { orphans.candidates.count == 1 })
         #expect(orphans.checkedIDs.isEmpty)
         #expect(!orphans.hasDefaultSelectable)
     }
@@ -64,7 +64,7 @@ struct CandidateListModelTests {
             running: ["com.apple.dt.Xcode"],
         )
         let model = harness.list(.devCaches)
-        #expect(try await eventually { model.candidates.count == 1 })
+        #expect(await eventually { model.candidates.count == 1 })
         #expect(model.checkedIDs.isEmpty)
         #expect(model.blockReason(model.candidates[0]) == "Quit Xcode to quarantine this")
     }
@@ -76,7 +76,7 @@ struct CandidateListModelTests {
             CandidateHarness.candidate(id: 3, name: "npm", ruleID: "npm.cache", size: 1_000_000_000),
         ])
         let model = harness.list(.devCaches)
-        #expect(try await eventually { model.rows.count == 2 })
+        #expect(await eventually { model.rows.count == 2 })
         let xcode = try #require(model.rows.first)
         #expect(xcode.name == "Xcode")
         #expect(xcode.children.count == 2)
@@ -96,10 +96,10 @@ struct CandidateListModelTests {
             CandidateHarness.candidate(id: 2, name: "a", category: .oldLarge, ruleID: "oldLarge", size: 1_000_000_000),
         ])
         let model = harness.list(.oldLarge)
-        #expect(try await eventually { model.candidates.map(\.id) == [1, 2] })
+        #expect(await eventually { model.candidates.map(\.id) == [1, 2] })
         model.sortOrder = [KeyPathComparator(\CandidateRow.name)]
         #expect(model.sort == CandidateSort(column: .name, ascending: true))
-        #expect(try await eventually { model.candidates.map(\.id) == [2, 1] })
+        #expect(await eventually { model.candidates.map(\.id) == [2, 1] })
     }
 
     @Test func `quarantine from the bar moves checked items and reports failures`() async throws {
@@ -110,12 +110,12 @@ struct CandidateListModelTests {
         )
         await harness.quarantine.setMoveFailure(.appRunning, for: failing.url)
         let model = harness.list(.devCaches)
-        #expect(try await eventually { model.checkedIDs == [1, 2] })
+        #expect(await eventually { model.checkedIDs == [1, 2] })
         #expect(model.quarantineDisabledReason == nil)
 
         await model.quarantineChecked()
         #expect(await harness.quarantine.quarantineCalls.count == 1)
-        #expect(try await eventually { model.candidates.compactMap(\.id) == [2] })
+        #expect(await eventually { model.candidates.compactMap(\.id) == [2] })
         let report = try #require(model.failureReport)
         #expect(report.reasons.map(\.title) == ["App is running"])
         #expect(harness.app.toast?.action?.destination == .quarantine)
@@ -127,7 +127,7 @@ struct CandidateListModelTests {
             CandidateHarness.candidate(id: 2, name: "Two", tier: .yellow),
         ])
         let model = harness.list(.devCaches)
-        #expect(try await eventually { model.candidates.count == 2 })
+        #expect(await eventually { model.candidates.count == 2 })
         model.checkedIDs = [1, 2]
         #expect(model.screenActions.canQuarantine)
         model.requestQuarantine()
@@ -142,9 +142,9 @@ struct CandidateListModelTests {
     @Test func `ignore removes rows through the store`() async throws {
         let harness = try await CandidateHarness(name: "ListIgnore", candidates: [CandidateHarness.candidate(id: 1, name: "One")])
         let model = harness.list(.devCaches)
-        #expect(try await eventually { model.candidates.count == 1 })
+        #expect(await eventually { model.candidates.count == 1 })
         await model.ignore([.item(1)])
-        #expect(try await eventually { model.candidates.isEmpty })
+        #expect(await eventually { model.candidates.isEmpty })
         #expect(await harness.store.isIgnored(URL(filePath: "/fixture/One", directoryHint: .isDirectory)))
     }
 
@@ -155,7 +155,7 @@ struct CandidateListModelTests {
             CandidateHarness.candidate(id: 3, name: "Leftover", category: .orphan, ruleID: "orphan.caches"),
         ])
         let model = harness.list(.flagged)
-        #expect(try await eventually { model.candidates.count == 2 })
+        #expect(await eventually { model.candidates.count == 2 })
         #expect(model.checkedIDs.isEmpty)
         #expect(!model.screenActions.canQuarantine)
         #expect(model.candidates.first?.resolvedCommand == "tool prune '/fixture/Docker.raw'")
@@ -168,7 +168,7 @@ struct CandidateListModelTests {
         harness.app.reveal(target)
         #expect(harness.app.selection == .oldLarge)
         let model = harness.list(.oldLarge)
-        #expect(try await eventually { model.focusedIDs == [.item(7)] })
+        #expect(await eventually { model.focusedIDs == [.item(7)] })
         #expect(harness.app.pendingRowSelection == nil)
     }
 }

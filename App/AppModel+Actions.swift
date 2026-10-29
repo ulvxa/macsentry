@@ -28,6 +28,7 @@ extension AppModel {
         let movedIDs = result.moved.compactMap(\.candidateID)
         try? await services.candidates.setStatus(.quarantined, ids: movedIDs)
         await refreshQuarantineTotals()
+        await menuBar.refreshTotals()
         if !result.moved.isEmpty {
             let bytes = result.moved.reduce(Int64(0)) { $0 + $1.size }
             let text = environment.isDryRun
