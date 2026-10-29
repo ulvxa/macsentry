@@ -62,6 +62,14 @@ public struct GRDBCandidateStore: CandidateStore {
         }
     }
 
+    public func projects(session: Int64) async throws -> [Project] {
+        try await read { db in
+            try Project.fetchAll(db, sql: """
+            SELECT * FROM project WHERE session_id = ? ORDER BY artifacts_size DESC, id ASC
+            """, arguments: [session])
+        }
+    }
+
     public func observeCandidates(
         session: Int64,
         filter: CandidateFilter,
