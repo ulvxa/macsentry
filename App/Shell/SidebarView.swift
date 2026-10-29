@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SidebarView: View {
+    @Environment(AppModel.self) private var model
     @Binding var selection: SidebarItem?
 
     var body: some View {
@@ -22,6 +23,12 @@ struct SidebarView: View {
             NavigationLink(value: item) {
                 Label(item.title, systemImage: item.systemImage)
             }
+            .badge(badge(for: item))
         }
+    }
+
+    private func badge(for item: SidebarItem) -> Text? {
+        guard let bytes = model.badgeBytes(for: item) else { return nil }
+        return Text(ByteFormat.string(bytes)).monospacedDigit()
     }
 }

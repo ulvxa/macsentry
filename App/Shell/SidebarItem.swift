@@ -1,3 +1,4 @@
+import MacSentryCore
 import SwiftUI
 
 enum SidebarSection: CaseIterable, Identifiable {
@@ -66,5 +67,39 @@ enum SidebarItem: String, CaseIterable, Identifiable, Hashable {
     var shortcut: KeyEquivalent? {
         guard let index = Self.allCases.firstIndex(of: self), index < 9 else { return nil }
         return KeyEquivalent(Character(String(index + 1)))
+    }
+}
+
+extension SidebarItem {
+    var categories: Set<MacSentryCore.Category> {
+        switch self {
+        case .overview, .quarantine: []
+        case .devCaches: [.devCache]
+        case .appCaches: [.appCache]
+        case .oldLarge: [.oldLarge]
+        case .projects: [.projectArtifact]
+        case .orphans: [.orphan]
+        case .duplicates: [.duplicate]
+        case .flagged: [.flagged]
+        }
+    }
+
+    var showsToolbarScan: Bool {
+        self != .overview
+    }
+
+    static func destination(for candidate: Candidate) -> SidebarItem {
+        if candidate.action == .flagOnly {
+            return .flagged
+        }
+        return switch candidate.category {
+        case .devCache: .devCaches
+        case .appCache: .appCaches
+        case .oldLarge: .oldLarge
+        case .projectArtifact: .projects
+        case .orphan: .orphans
+        case .duplicate: .duplicates
+        case .flagged: .flagged
+        }
     }
 }

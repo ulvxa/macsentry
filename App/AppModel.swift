@@ -3,6 +3,17 @@ import Foundation
 import MacSentryCore
 import Observation
 
+enum ProtectionSetupError: LocalizedError, Equatable {
+    case refreshFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .refreshFailed(reason):
+            "MacSentry couldn't load its protection rules, so scanning and quarantine stay off. \(reason)"
+        }
+    }
+}
+
 struct AppAlert: Identifiable, Equatable {
     let id = UUID()
     let title: String
@@ -12,6 +23,8 @@ struct AppAlert: Identifiable, Equatable {
 @Observable
 @MainActor
 final class AppModel {
+    static let narrowWidth: CGFloat = 1100
+
     let environment: AppEnvironment
     let settings: SettingsModel
     let permissions: any PermissionService
@@ -23,6 +36,32 @@ final class AppModel {
     private(set) var protection: ProtectionPolicyProvider?
     private(set) var neverTouch: NeverTouchModel?
     private var isOpeningDatabase = false
+
+    private(set) var services: AppServices?
+    var scanState: ScanState = .idle
+    private(set) var currentSessionID: Int64?
+    private(set) var latestFinishedSession: ScanSession?
+    private(set) var previousFinishedSession: ScanSession?
+    var runningSessionID: Int64?
+    private(set) var totals: [MacSentryCore.Category: CategoryTotal] = [:]
+    private(set) var quarantineTotals: QuarantineTotals?
+    var isQuarantining = false
+    var toast: Toast?
+    var unreadableReport: UnreadableReport?
+    var pendingRowSelection: PendingRowSelection?
+    var bottomChromeInset: CGFloat = 0
+    var inspectorPreferred = true
+    private var inspectorForcedOpen = false
+    var windowSize: CGSize = .zero {
+        didSet {
+            if isNarrow, oldValue.width >= Self.narrowWidth {
+                inspectorForcedOpen = false
+            }
+        }
+    }
+
+    @ObservationIgnored var scanTask: Task<Void, Never>?
+    @ObservationIgnored private var totalsTask: Task<Void, Never>?
 
     init(
         environment: AppEnvironment = AppEnvironment(),
@@ -39,6 +78,10 @@ final class AppModel {
 
     var showsLimitedModeBadge: Bool {
         settings.limitedMode && !hasFullDiskAccess
+    }
+
+    var isReady: Bool {
+        services != nil
     }
 
     func refreshPermissions() {
@@ -64,7 +107,15 @@ final class AppModel {
                 try Database.open(at: url)
             }.value
             database = opened
-            await attachProtection(to: opened)
+            let inventory = SystemAppInventory.standard(homeURL: environment.homeURL)
+            let (provider, store) = try await attachProtection(to: opened, inventory: inventory)
+            await attach(AppServices.live(
+                environment: environment,
+                database: opened,
+                protection: provider,
+                neverTouch: store,
+                inventory: inventory,
+            ))
             if let backup = opened.corruptBackupURL {
                 alert = AppAlert(
                     title: "Database Was Reset",
@@ -73,20 +124,121 @@ final class AppModel {
                 )
             }
         } catch {
-            alert = AppAlert(title: "Database Unavailable", message: error.localizedDescription)
+            let title = error is ProtectionSetupError ? "Protection Rules Unavailable" : "Database Unavailable"
+            alert = AppAlert(title: title, message: error.localizedDescription)
         }
     }
 
-    private func attachProtection(to database: Database) async {
+    func attach(_ services: AppServices) async {
+        self.services = services
+        await reloadSessions(preferring: nil)
+        do {
+            try await services.quarantine.reconcile()
+        } catch {
+            alert = AppAlert(title: "Quarantine Check Failed", message: error.localizedDescription)
+        }
+        await refreshQuarantineTotals()
+    }
+
+    private func attachProtection(
+        to database: Database,
+        inventory: SystemAppInventory,
+    ) async throws -> (ProtectionPolicyProvider, GRDBNeverTouchStore) {
         let store = GRDBNeverTouchStore(database: database)
         let provider = ProtectionPolicyProvider(
             environment: environment,
             neverTouchStore: store,
             ignoredPathStore: GRDBIgnoredPathStore(database: database),
+            appInventory: inventory,
         )
+        do {
+            try await provider.refresh()
+        } catch {
+            throw ProtectionSetupError.refreshFailed(error.localizedDescription)
+        }
         protection = provider
         let model = NeverTouchModel(store: store, provider: provider, homeURL: environment.homeURL)
         neverTouch = model
         await model.load()
+        return (provider, store)
+    }
+
+    // MARK: Sessions and totals
+
+    func ruleGroup(for ruleID: String) -> String {
+        services?.ruleGroups[ruleID] ?? RuleGroups.fallback(for: ruleID)
+    }
+
+    func total(for item: SidebarItem) -> CategoryTotal? {
+        guard currentSessionID != nil else { return nil }
+        let categories = item.categories
+        guard !categories.isEmpty else { return nil }
+        return categories.reduce(CategoryTotal.zero) { sum, category in
+            let value = totals[category] ?? .zero
+            return CategoryTotal(count: sum.count + value.count, freeable: sum.freeable + value.freeable)
+        }
+    }
+
+    func badgeBytes(for item: SidebarItem) -> Int64? {
+        if item == .quarantine {
+            return quarantineTotals.map(\.inQuarantine).flatMap { $0 > 0 ? $0 : nil }
+        }
+        return total(for: item).map(\.freeable)
+    }
+
+    func refreshQuarantineTotals() async {
+        guard let services else { return }
+        quarantineTotals = try? await services.quarantine.totals()
+    }
+
+    func reveal(_ candidate: Candidate) {
+        guard let id = candidate.id else { return }
+        let item = SidebarItem.destination(for: candidate)
+        pendingRowSelection = PendingRowSelection(item: item, candidateID: id)
+        selection = item
+    }
+
+    func reloadSessions(preferring sessionID: Int64?) async {
+        guard let store = services?.candidates else { return }
+        let finished = await ((try? store.sessions(limit: DefaultScanService.retainedSessions)) ?? []).filter { $0.status == .finished }
+        latestFinishedSession = finished.first
+        previousFinishedSession = finished.dropFirst().first
+        setCurrentSession(sessionID ?? finished.first?.id)
+    }
+
+    private func setCurrentSession(_ sessionID: Int64?) {
+        guard sessionID != currentSessionID || totalsTask == nil else { return }
+        currentSessionID = sessionID
+        totalsTask?.cancel()
+        totalsTask = nil
+        totals = [:]
+        guard let sessionID, let store = services?.candidates else { return }
+        totalsTask = Task { [weak self] in
+            do {
+                for try await value in store.observeTotals(session: sessionID) {
+                    self?.totals = value
+                }
+            } catch {
+                self?.totals = [:]
+            }
+        }
+    }
+
+    // MARK: Inspector
+
+    var isNarrow: Bool {
+        windowSize.width > 0 && windowSize.width < Self.narrowWidth
+    }
+
+    var isInspectorPresented: Bool {
+        get { inspectorPreferred && (!isNarrow || inspectorForcedOpen) }
+        set {
+            inspectorPreferred = newValue
+            inspectorForcedOpen = newValue && isNarrow
+        }
+    }
+
+    func toggleInspector() {
+        isInspectorPresented.toggle()
     }
 }

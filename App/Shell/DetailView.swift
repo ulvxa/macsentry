@@ -14,6 +14,7 @@ struct DetailView: View {
             case .quarantine: QuarantineView()
             }
         }
+        .id(item)
         .navigationTitle(item.title)
     }
 }
