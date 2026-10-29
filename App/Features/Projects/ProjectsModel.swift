@@ -40,6 +40,7 @@ final class ProjectsModel {
             projectsByID = Dictionary(projects.compactMap { project in project.id.map { ($0, project) } }) { first, _ in first }
         }
     }
+
     private var gitProjectIDs: Set<Int64> = []
     private var artifacts: [Candidate] = []
     var checkedIDs: Set<Int64> = []
