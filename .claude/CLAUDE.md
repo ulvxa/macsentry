@@ -34,3 +34,6 @@ Native macOS 26 disk cleanup app. Finds reclaimable files, moves them to a quara
 - Tests only touch temp dirs built by `FixtureBuilder`. Never read or write the real home folder in tests
 - When running the app during dev, launch with `-MacSentryScanRoot <fixture dir>` and `-MacSentryDryRun YES`
 - Never run `sudo`, `rm`, or any cleanup CLI (docker, brew, xcrun simctl, ollama) yourself
+
+## Progress
+- Phase 0 done: XcodeGen project (arm64, team LN2CFAG956), Core pkg (GRDB 7.11), `Database` v1, models, `AppEnvironment`, `FixtureBuilder` (in `MacSentryTestSupport`), sidebar shell. Gotchas: use `MacSentryCore.Category` in App (ObjC clash), `GRDB.Database` inside Core

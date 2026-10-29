@@ -1,0 +1,56 @@
+included:
+  - App
+  - AppTests
+  - Packages/MacSentryCore/Sources
+  - Packages/MacSentryCore/Tests
+  - Packages/MacSentryCore/Package.swift
+excluded:
+  - .build
+  - DerivedData
+  - MacSentry.xcodeproj
+  - Packages/MacSentryCore/.build
+
+disabled_rules:
+  - trailing_comma
+  - opening_brace
+
+opt_in_rules:
+  - force_unwrapping
+  - empty_count
+  - first_where
+  - contains_over_first_not_nil
+  - sorted_first_last
+  - redundant_nil_coalescing
+  - unused_optional_binding
+  - toggle_bool
+  - closure_spacing
+  - implicit_return
+  - modifier_order
+  - fatal_error_message
+
+line_length:
+  warning: 140
+  error: 200
+  ignores_urls: true
+  ignores_comments: true
+
+identifier_name:
+  min_length: 2
+  excluded:
+    - id
+    - db
+    - v1
+
+type_name:
+  min_length: 3
+  max_length: 60
+
+nesting:
+  type_level: 2
+
+custom_rules:
+  no_remove_item:
+    name: "No removeItem"
+    regex: '\bremoveItem\s*\('
+    message: "removeItem is forbidden. Only QuarantineService may call FileManager.trashItem."
+    severity: error
