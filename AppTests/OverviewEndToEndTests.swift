@@ -93,7 +93,7 @@ struct OverviewEndToEndTests {
             protection: protection,
             ruleGroups: RuleGroups.bundled(),
             scanConfig: { pipeline.config(scanRoots: $0) },
-            makeScanService: { pipeline.makeService(options: $0) },
+            makeScanService: { pipeline.makeService(options: $0, control: $1) },
             volume: FakeVolumeSampler(total: 500_000_000_000, free: 200_000_000_000),
             snapshots: StubLocalSnapshotChecker(count: 0),
         ))

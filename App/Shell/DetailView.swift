@@ -7,7 +7,8 @@ struct DetailView: View {
         Group {
             switch item {
             case .overview: OverviewView()
-            case .devCaches, .appCaches, .oldLarge, .orphans: CategoryListView(item: item)
+            case .devCaches, .appCaches, .oldLarge: CategoryListView(item: item)
+            case .orphans: OrphansView()
             case .projects: ProjectsView()
             case .duplicates: DuplicatesView()
             case .flagged: FlaggedView()

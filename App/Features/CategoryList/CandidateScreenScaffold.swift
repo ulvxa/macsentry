@@ -1,10 +1,11 @@
 import MacSentryCore
 import SwiftUI
 
-struct CandidateScreenScaffold<Content: View>: View {
+struct CandidateScreenScaffold<Content: View, InspectorExtra: View>: View {
     @Environment(AppModel.self) private var app
     @Bindable var model: CandidateListModel
-    @ViewBuilder var content: Content
+    @ViewBuilder let inspectorExtra: (Candidate) -> InspectorExtra
+    @ViewBuilder let content: Content
 
     var body: some View {
         @Bindable var app = app
@@ -35,6 +36,7 @@ struct CandidateScreenScaffold<Content: View>: View {
                 groupName: { app.ruleGroup(for: $0.ruleID) },
                 blockReason: model.blockReason,
                 quickLook: { candidate in model.quickLookURL = candidate.url },
+                extra: inspectorExtra,
             )
             .inspectorColumnWidth(min: 260, ideal: 300, max: 380)
         }
@@ -56,6 +58,12 @@ struct CandidateScreenScaffold<Content: View>: View {
         .onChange(of: app.settings.thresholds) { _, thresholds in
             model.thresholdsChanged(to: thresholds)
         }
+    }
+}
+
+extension CandidateScreenScaffold where InspectorExtra == EmptyView {
+    init(model: CandidateListModel, @ViewBuilder content: () -> Content) {
+        self.init(model: model, inspectorExtra: { _ in EmptyView() }, content: content)
     }
 }
 

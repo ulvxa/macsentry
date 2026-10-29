@@ -35,7 +35,7 @@ struct ProjectsHarness {
             protection: nil,
             ruleGroups: [:],
             scanConfig: { _ in ScanConfig(roots: [root]) },
-            makeScanService: { _ in StubScanService(events: []) },
+            makeScanService: { _, _ in StubScanService(events: []) },
         ))
     }
 

@@ -53,6 +53,7 @@ final class CandidateListModel {
     init(configuration: CandidateListConfiguration, app: AppModel) {
         self.configuration = configuration
         self.app = app
+        collapsedGroups = configuration.collapsedByDefault
         let defaults = configuration.defaultFilter(thresholds: app.settings.thresholds)
         defaultFilter = defaults
         filter = defaults
@@ -145,12 +146,12 @@ final class CandidateListModel {
     }
 
     private func receive(_ value: [Candidate]) {
-        let visible = value.filter { $0.action == configuration.action && $0.id != nil }
+        let visible = value.filter { configuration.actions.contains($0.action) && $0.id != nil }
         blockedBundleIDs = app.runningApps(among: Set(visible.compactMap(\.appBundleID)))
         for candidate in visible {
             guard let id = candidate.id, !seenIDs.contains(id) else { continue }
             seenIDs.insert(id)
-            if configuration.isCheckable, configuration.defaultCheckedTiers.contains(candidate.tier), !isBlocked(candidate) {
+            if configuration.isCheckable, configuration.defaultCheckedTiers.contains(candidate.tier), isCheckable(candidate) {
                 checkedIDs.insert(id)
             }
         }
@@ -208,8 +209,12 @@ final class CandidateListModel {
         return "Quit \(app.ruleGroup(for: candidate.ruleID)) to quarantine this"
     }
 
+    func isCheckable(_ candidate: Candidate) -> Bool {
+        candidate.action == .quarantine && !isBlocked(candidate)
+    }
+
     func checkState(of row: CandidateRow) -> CheckState {
-        let ids = row.candidates.filter { !isBlocked($0) }.compactMap(\.id)
+        let ids = row.candidates.filter(isCheckable).compactMap(\.id)
         let checked = ids.count { checkedIDs.contains($0) }
         if checked == 0 {
             return .off
@@ -218,7 +223,7 @@ final class CandidateListModel {
     }
 
     func toggleCheck(_ row: CandidateRow) {
-        let ids = row.candidates.filter { !isBlocked($0) }.compactMap(\.id)
+        let ids = row.candidates.filter(isCheckable).compactMap(\.id)
         if checkState(of: row) == .on {
             checkedIDs.subtract(ids)
         } else {
@@ -231,15 +236,15 @@ final class CandidateListModel {
     }
 
     var hasDefaultSelectable: Bool {
-        candidates.contains { configuration.defaultCheckedTiers.contains($0.tier) && !isBlocked($0) }
+        candidates.contains { configuration.defaultCheckedTiers.contains($0.tier) && isCheckable($0) }
     }
 
     func selectDefault() {
-        checkedIDs = Set(candidates.filter { configuration.defaultCheckedTiers.contains($0.tier) && !isBlocked($0) }.compactMap(\.id))
+        checkedIDs = Set(candidates.filter { configuration.defaultCheckedTiers.contains($0.tier) && isCheckable($0) }.compactMap(\.id))
     }
 
     var checkedCandidates: [Candidate] {
-        candidates.filter { candidate in candidate.id.map(checkedIDs.contains) == true && !isBlocked(candidate) }
+        candidates.filter { candidate in candidate.id.map(checkedIDs.contains) == true && isCheckable(candidate) }
     }
 
     var checkedBytes: Int64 {

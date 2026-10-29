@@ -3,9 +3,10 @@ import MacSentryCore
 struct CandidateListConfiguration {
     let item: SidebarItem
     let categories: Set<MacSentryCore.Category>
-    var action: CandidateAction = .quarantine
+    var actions: Set<CandidateAction> = [.quarantine]
     var groupsByRule = false
     var defaultCheckedTiers: Set<Tier> = [.green]
+    var collapsedByDefault: Set<String> = []
     var controls: [FilterControl] = FilterControl.listControls
     var isCheckable = true
     var emptyTitle = "Nothing here above your thresholds"
@@ -25,25 +26,9 @@ struct CandidateListConfiguration {
                 noScanSubject: "old and large files",
             )
         case .orphans:
-            CandidateListConfiguration(
-                item: item,
-                categories: [.orphan],
-                defaultCheckedTiers: [],
-                noScanSubject: "leftover app files",
-            )
+            .orphans
         case .flagged:
-            CandidateListConfiguration(
-                item: item,
-                categories: [.flagged, .orphan],
-                action: .flagOnly,
-                groupsByRule: true,
-                defaultCheckedTiers: [],
-                controls: [.size(label: "Size at least"), .tiers],
-                isCheckable: false,
-                emptyTitle: "Nothing flagged",
-                emptyMessage: "Items that need a command line tool to clean appear here.",
-                noScanSubject: "items that need a command line tool",
-            )
+            .flagged
         case .projects:
             CandidateListConfiguration(
                 item: item,
@@ -65,6 +50,34 @@ struct CandidateListConfiguration {
 }
 
 extension CandidateListConfiguration {
+    private static var orphans: CandidateListConfiguration {
+        CandidateListConfiguration(
+            item: .orphans,
+            categories: [.orphan],
+            actions: [.quarantine, .flagOnly],
+            defaultCheckedTiers: [],
+            collapsedByDefault: [Confidence.low.sectionTitle],
+            emptyTitle: "No leftovers found",
+            emptyMessage: "Nothing in your Library looks orphaned.",
+            noScanSubject: "leftover app files",
+        )
+    }
+
+    private static var flagged: CandidateListConfiguration {
+        CandidateListConfiguration(
+            item: .flagged,
+            categories: [.flagged, .orphan],
+            actions: [.flagOnly],
+            groupsByRule: true,
+            defaultCheckedTiers: [],
+            controls: [.size(label: "Size at least"), .tiers],
+            isCheckable: false,
+            emptyTitle: "Nothing flagged",
+            emptyMessage: "Items that need a command line tool to clean appear here.",
+            noScanSubject: "items that need a command line tool",
+        )
+    }
+
     var usesThresholdFilters: Bool {
         [.oldLarge, .projects, .duplicates].contains(item)
     }

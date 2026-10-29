@@ -18,8 +18,9 @@ public actor InMemoryCandidateStore: CandidateStore {
     }
 
     private var sessionRows: [ScanSession]
-    private var candidateRows: [Candidate]
+    var candidateRows: [Candidate]
     private var dirNodeRows: [DirNode]
+    var groupRows: [DuplicateGroup]
     private var projectRows: [Project]
     private var ignoredPaths: Set<String> = []
     private var candidateObservers: [UUID: CandidateObserver] = [:]
@@ -30,6 +31,7 @@ public actor InMemoryCandidateStore: CandidateStore {
         sessions: [ScanSession] = [],
         candidates: [Candidate] = [],
         dirNodes: [DirNode] = [],
+        duplicateGroups: [DuplicateGroup] = [],
         projects: [Project] = [],
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
@@ -60,6 +62,7 @@ public actor InMemoryCandidateStore: CandidateStore {
             }
             return row
         }
+        groupRows = Self.numbered(duplicateGroups)
         projectRows = projects
         self.now = now
     }
@@ -161,30 +164,6 @@ public actor InMemoryCandidateStore: CandidateStore {
         notify()
     }
 
-    public func children(of dirNodeID: Int64?, session: Int64) -> [DirNode] {
-        dirNodeRows
-            .filter { $0.sessionID == session && $0.parentID == dirNodeID }
-            .sorted { $0.allocatedSize != $1.allocatedSize ? $0.allocatedSize > $1.allocatedSize : ($0.id ?? 0) < ($1.id ?? 0) }
-    }
-
-    public func rootDirNodes(session: Int64) -> [DirNode] {
-        children(of: nil, session: session)
-    }
-
-    public func dirNode(id: Int64) -> DirNode? {
-        dirNodeRows.first { $0.id == id }
-    }
-
-    public func ancestors(of dirNodeID: Int64) -> [DirNode] {
-        var result: [DirNode] = []
-        var cursor = dirNode(id: dirNodeID)?.parentID
-        while let id = cursor, let node = dirNode(id: id), result.count <= dirNodeRows.count {
-            result.append(node)
-            cursor = node.parentID
-        }
-        return result.reversed()
-    }
-
     public func candidateCount(underPath path: URL, session: Int64) -> Int {
         let base = path.storagePath
         let prefix = base.hasSuffix("/") ? base : base + "/"
@@ -236,7 +215,7 @@ public actor InMemoryCandidateStore: CandidateStore {
         totalsObservers[id] = nil
     }
 
-    private func notify() {
+    func notify() {
         for (id, var observer) in candidateObservers {
             let value = query(
                 session: observer.session,
@@ -352,6 +331,30 @@ private extension Tier {
 }
 
 public extension InMemoryCandidateStore {
+    func children(of dirNodeID: Int64?, session: Int64) -> [DirNode] {
+        dirNodeRows
+            .filter { $0.sessionID == session && $0.parentID == dirNodeID }
+            .sorted { $0.allocatedSize != $1.allocatedSize ? $0.allocatedSize > $1.allocatedSize : ($0.id ?? 0) < ($1.id ?? 0) }
+    }
+
+    func rootDirNodes(session: Int64) -> [DirNode] {
+        children(of: nil, session: session)
+    }
+
+    func dirNode(id: Int64) -> DirNode? {
+        dirNodeRows.first { $0.id == id }
+    }
+
+    func ancestors(of dirNodeID: Int64) -> [DirNode] {
+        var result: [DirNode] = []
+        var cursor = dirNode(id: dirNodeID)?.parentID
+        while let id = cursor, let node = dirNode(id: id), result.count <= dirNodeRows.count {
+            result.append(node)
+            cursor = node.parentID
+        }
+        return result.reversed()
+    }
+
     func projects(session: Int64) -> [Project] {
         projectRows
             .filter { $0.sessionID == session }

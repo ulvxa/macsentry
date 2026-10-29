@@ -45,7 +45,7 @@ struct OverviewHarness {
             protection: nil,
             ruleGroups: ["xcode.derivedData": "Xcode", "oldLarge": "Old and Large"],
             scanConfig: { _ in ScanConfig(roots: [root]) },
-            makeScanService: { _ in scan() },
+            makeScanService: { _, _ in scan() },
             volume: sampler,
             snapshots: StubLocalSnapshotChecker(count: snapshots),
         ))

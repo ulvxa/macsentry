@@ -6,9 +6,14 @@ import Synchronization
 
 final class ScanServiceFactory: Sendable {
     private let calls = Mutex<[ScanPipelineOptions]>([])
-    private let make: @Sendable () -> any ScanService
+    private let controlCalls = Mutex<[ScanControl]>([])
+    private let make: @Sendable (ScanControl) -> any ScanService
 
     init(_ make: @escaping @Sendable () -> any ScanService) {
+        self.make = { _ in make() }
+    }
+
+    init(controlled make: @escaping @Sendable (ScanControl) -> any ScanService) {
         self.make = make
     }
 
@@ -16,9 +21,14 @@ final class ScanServiceFactory: Sendable {
         calls.withLock { $0 }
     }
 
-    func service(_ options: ScanPipelineOptions) -> any ScanService {
+    var controls: [ScanControl] {
+        controlCalls.withLock { $0 }
+    }
+
+    func service(_ options: ScanPipelineOptions, control: ScanControl) -> any ScanService {
         calls.withLock { $0.append(options) }
-        return make()
+        controlCalls.withLock { $0.append(control) }
+        return make(control)
     }
 }
 
@@ -49,6 +59,8 @@ struct CandidateHarness {
         running: Set<String> = [],
         scan: @escaping @Sendable () -> any ScanService = { StubScanService(events: []) },
         configure: (SettingsStore) -> Void = { _ in },
+        duplicateGroups: [DuplicateGroup] = [],
+        controlledScan: (@Sendable (ScanControl) -> any ScanService)? = nil,
     ) async throws {
         fixture = try FixtureBuilder(name: name)
         let settings = try SettingsStore(defaults: fixture.isolatedDefaults(), homeURL: fixture.root)
@@ -57,9 +69,10 @@ struct CandidateHarness {
         store = InMemoryCandidateStore(
             sessions: sessions ?? [ScanSession(id: 1, startedAt: Date(), finishedAt: Date(), status: .finished, roots: [fixture.root])],
             candidates: candidates,
+            duplicateGroups: duplicateGroups,
         )
         quarantine = TestQuarantineService()
-        scans = ScanServiceFactory(scan)
+        scans = controlledScan.map { ScanServiceFactory(controlled: $0) } ?? ScanServiceFactory(scan)
         let root = fixture.root
         let scans = scans
         await app.attach(AppServices(
@@ -70,7 +83,7 @@ struct CandidateHarness {
             protection: nil,
             ruleGroups: ["xcode.derivedData": "Xcode", "xcode.deviceSupport": "Xcode", "npm.cache": "npm", "oldLarge": "Old and Large"],
             scanConfig: { _ in ScanConfig(roots: [root]) },
-            makeScanService: { scans.service($0) },
+            makeScanService: { scans.service($0, control: $1) },
         ))
     }
 

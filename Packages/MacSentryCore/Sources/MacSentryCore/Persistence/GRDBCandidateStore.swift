@@ -179,6 +179,25 @@ public struct GRDBCandidateStore: CandidateStore {
         }
     }
 
+    public func duplicateGroups(session: Int64) async throws -> [DuplicateGroup] {
+        try await read { db in
+            try DuplicateGroup.fetchAll(db, sql: """
+            SELECT * FROM duplicate_group WHERE session_id = ? AND EXISTS (
+              SELECT 1 FROM candidate WHERE candidate.dup_group_id = duplicate_group.id AND candidate.status = 'found'
+            )
+            ORDER BY reclaimable_size DESC, id ASC
+            """, arguments: [session])
+        }
+    }
+
+    public func members(ofGroup groupID: Int64) async throws -> [Candidate] {
+        try await read { db in try DuplicateStore.members(ofGroup: groupID, in: db) }
+    }
+
+    public func changeKeeper(ofGroup groupID: Int64, to newKeeper: URL) async throws -> (group: DuplicateGroup, members: [Candidate]) {
+        try await write { db in try DuplicateStore.changeKeeper(ofGroup: groupID, to: newKeeper, in: db) }
+    }
+
     private static func fetchTotals(_ db: GRDB.Database, session: Int64) throws -> [Category: CategoryTotal] {
         let rows = try Row.fetchAll(db, sql: """
         SELECT category, COUNT(*) AS item_count, COALESCE(SUM(freeable_size), 0) AS freeable
