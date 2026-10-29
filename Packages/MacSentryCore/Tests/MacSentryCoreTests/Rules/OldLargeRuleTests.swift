@@ -85,6 +85,22 @@ struct OldLargeRuleTests {
         #expect(evaluate(oldLarge, loose, thresholds: thresholds) != nil)
     }
 
+    @Test func `everything under Library and the Trash is excluded`() throws {
+        let fixture = try FixtureBuilder(name: "OldLarge")
+        let old = Kit.daysAgo(365)
+        let excluded = try [
+            "Library/Application Support/Game/assets.pak", "Library/Containers/com.x/Data/big.mov",
+            "Library/Safari/History.db", ".Trash/old.iso", ".Trash/folder/movie.mov",
+        ].map { try fixture.sparseFile($0, logicalSize: Self.gigabyte, modified: old) }
+        let kept = try fixture.sparseFile("Movies/old.mov", logicalSize: Self.gigabyte, modified: old)
+        let oldLarge = rule(home: fixture.root)
+        let thresholds = Thresholds(minAgeDays: 180, minSize: 500_000_000)
+        for url in excluded {
+            #expect(evaluate(oldLarge, url, thresholds: thresholds) == nil, "\(url.lastPathComponent)")
+        }
+        #expect(evaluate(oldLarge, kept, thresholds: thresholds) != nil)
+    }
+
     @Test func `age follows the selected basis`() throws {
         let fixture = try FixtureBuilder(name: "OldLarge")
         // APFS pulls the birth time back when mtime is set earlier, so the created date is the older one here.

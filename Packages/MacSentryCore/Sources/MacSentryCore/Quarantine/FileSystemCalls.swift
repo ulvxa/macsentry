@@ -40,7 +40,41 @@ enum FileSystemCalls {
     }
 
     static func exists(_ url: URL) -> Bool {
-        (try? status(of: url)) != nil
+        presence(of: url) != false
+    }
+
+    static func presence(of url: URL) -> Bool? {
+        do {
+            _ = try status(of: url)
+            return true
+        } catch {
+            return error.code == ENOENT || error.code == ENOTDIR ? false : nil
+        }
+    }
+
+    static func realPath(_ url: URL) throws(POSIXFailure) -> String {
+        var code: Int32 = 0
+        let resolved: String? = url.withUnsafeFileSystemRepresentation { pointer in
+            guard let pointer, let real = realpath(pointer, nil) else {
+                code = errno
+                return nil
+            }
+            defer { free(real) }
+            return String(cString: real)
+        }
+        guard let resolved else { throw POSIXFailure(code: code == 0 ? EINVAL : code) }
+        return resolved
+    }
+
+    static func appendLine(_ data: Data, to url: URL) throws(POSIXFailure) {
+        let descriptor = url.withUnsafeFileSystemRepresentation { pointer in
+            pointer.map { open($0, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0o644) } ?? -1
+        }
+        guard descriptor >= 0 else { throw POSIXFailure(code: errno) }
+        defer { close(descriptor) }
+        let line = data + Data([0x0A])
+        let written = line.withUnsafeBytes { write(descriptor, $0.baseAddress, $0.count) }
+        guard written == line.count else { throw POSIXFailure(code: written < 0 ? errno : EIO) }
     }
 
     static func renameExclusive(_ source: URL, to destination: URL) throws(POSIXFailure) {

@@ -43,7 +43,7 @@ public enum MoveFailure: String, Error, Sendable, CaseIterable, LocalizedError {
 
 public enum EntryFailureReason: String, Error, Sendable, CaseIterable, LocalizedError {
     case notFound, missing, alreadyTrashed, alreadyRestored, destinationExists, permissionDenied,
-         outsideQuarantine, dryRunMode, unknown
+         outsideQuarantine, dryRunMode, protected, unknown
 
     public var errorDescription: String? {
         switch self {
@@ -63,6 +63,8 @@ public enum EntryFailureReason: String, Error, Sendable, CaseIterable, Localized
             "The recorded location is outside the quarantine folder, so MacSentry won't touch it."
         case .dryRunMode:
             "Dry run is on, so nothing was changed on disk."
+        case .protected:
+            "MacSentry's protection rules don't allow putting an item at the original location."
         case .unknown:
             "An unexpected error stopped the operation."
         }

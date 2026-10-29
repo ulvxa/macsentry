@@ -11,6 +11,16 @@ struct QuarantineManifest: Codable, Equatable {
         var tier: Tier
         var size: Int64
         var status: QuarantineStatus
+
+        init(_ entry: QuarantineEntry) {
+            originalPath = entry.originalURL.storagePath
+            quarantinePath = entry.quarantineURL.storagePath
+            kind = entry.kind
+            ruleId = entry.ruleID
+            tier = entry.tier
+            size = entry.size
+            status = entry.status
+        }
     }
 
     var version: Int
@@ -24,17 +34,7 @@ struct QuarantineManifest: Codable, Equatable {
         self.batch = batch.folderName
         createdAt = Self.dateStyle(timeZone).format(batch.createdAt)
         dryRun = batch.dryRun
-        self.entries = entries.map {
-            Entry(
-                originalPath: $0.originalURL.storagePath,
-                quarantinePath: $0.quarantineURL.storagePath,
-                kind: $0.kind,
-                ruleId: $0.ruleID,
-                tier: $0.tier,
-                size: $0.size,
-                status: $0.status,
-            )
-        }
+        self.entries = entries.map(Entry.init)
     }
 
     func createdDate(timeZone: TimeZone) -> Date? {

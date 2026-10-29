@@ -2,10 +2,16 @@ import Foundation
 import Synchronization
 
 public final class ProtectionPolicyProvider: ProtectionPolicy {
+    public static let loadingReason = "Protection rules are still loading"
+
     private struct State {
         var policy: DefaultProtectionPolicy
-        var generation = 0
         var isKnownArtifact: ArtifactPredicate
+        var isReady = false
+        var started = 0
+        var applied = 0
+        var lastError: String?
+        var failed = 0
     }
 
     private let homeURL: URL
@@ -55,8 +61,17 @@ public final class ProtectionPolicyProvider: ProtectionPolicy {
         state.withLock(\.policy)
     }
 
+    public var isReady: Bool {
+        state.withLock(\.isReady)
+    }
+
+    public var lastRefreshError: String? {
+        state.withLock(\.lastError)
+    }
+
     public func check(_ url: URL) -> ProtectionVerdict {
-        current.check(url)
+        let (ready, policy) = state.withLock { ($0.isReady, $0.policy) }
+        return ready ? policy.check(url) : .denied(Self.loadingReason)
     }
 
     public func setKnownArtifact(_ predicate: @escaping ArtifactPredicate) {
@@ -65,23 +80,38 @@ public final class ProtectionPolicyProvider: ProtectionPolicy {
 
     public func refresh() async throws {
         let (generation, isKnownArtifact) = state.withLock { state in
-            state.generation += 1
-            return (state.generation, state.isKnownArtifact)
+            state.started += 1
+            return (state.started, state.isKnownArtifact)
         }
-        let patterns = try await neverTouchStore.patterns().map(\.pattern)
-        let ignored = try await ignoredPathStore.paths().map(\.url)
-        let bundleIDs = await Set(appInventory?.installedApps().map(\.bundleID) ?? [])
-        let policy = DefaultProtectionPolicy(
-            homeURL: homeURL,
-            databaseURL: databaseURL,
-            installedBundleIDs: bundleIDs,
-            neverTouchPatterns: patterns,
-            ignoredPaths: ignored,
-            isKnownArtifact: isKnownArtifact,
-        )
+        let policy: DefaultProtectionPolicy
+        do {
+            let patterns = try await neverTouchStore.patterns().map(\.pattern)
+            let ignored = try await ignoredPathStore.paths().map(\.url)
+            let bundleIDs = await Set(appInventory?.installedApps().map(\.bundleID) ?? [])
+            policy = DefaultProtectionPolicy(
+                homeURL: homeURL,
+                databaseURL: databaseURL,
+                installedBundleIDs: bundleIDs,
+                neverTouchPatterns: patterns,
+                ignoredPaths: ignored,
+                isKnownArtifact: isKnownArtifact,
+            )
+        } catch {
+            state.withLock { state in
+                if generation > state.applied, generation > state.failed {
+                    state.failed = generation
+                    state.lastError = error.localizedDescription
+                }
+            }
+            throw error
+        }
         state.withLock { state in
-            if state.generation == generation {
-                state.policy = policy
+            guard generation > state.applied else { return }
+            state.applied = generation
+            state.policy = policy
+            state.isReady = true
+            if generation > state.failed {
+                state.lastError = nil
             }
         }
     }
