@@ -1,0 +1,138 @@
+[
+  {
+    "id": "android.gradleCaches",
+    "group": "Android Studio",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.gradle/caches"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.google.android.studio"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Gradle dependency and build caches. The next build downloads and rebuilds them. Quit Android Studio and stop Gradle daemons first.",
+    "verify": false
+  },
+  {
+    "id": "android.gradleDists",
+    "group": "Android Studio",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.gradle/wrapper/dists/*"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.google.android.studio"
+    ],
+    "requiresAppQuit": false,
+    "reason": "One Gradle distribution. The wrapper downloads it again when a project needs it.",
+    "verify": false
+  },
+  {
+    "id": "android.studioCaches",
+    "group": "Android Studio",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Caches/Google/AndroidStudio*"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.google.android.studio"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Android Studio caches and indexes. Recreated automatically.",
+    "verify": false
+  },
+  {
+    "id": "android.studioLogs",
+    "group": "Android Studio",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Logs/Google/AndroidStudio*"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.google.android.studio"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Android Studio logs.",
+    "verify": false
+  },
+  {
+    "id": "android.oldStudioConfig",
+    "group": "Android Studio",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Application Support/Google/AndroidStudio*"
+      ],
+      "versionPolicy": "olderThanInstalled",
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.google.android.studio"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Settings and plugins of an Android Studio version older than the one installed.",
+    "verify": false
+  },
+  {
+    "id": "android.avd",
+    "group": "Android Studio",
+    "category": "flagged",
+    "tier": "red",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/.android/avd/*.avd"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.google.android.studio"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Android emulator with its data. Delete it with avdmanager or from the Device Manager.",
+    "cliCommand": "avdmanager delete avd -n {name}",
+    "verify": false
+  },
+  {
+    "id": "android.systemImages",
+    "group": "Android Studio",
+    "category": "flagged",
+    "tier": "yellow",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/Library/Android/sdk/system-images/*"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.google.android.studio"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Emulator system images for one API level. Uninstall them with sdkmanager.",
+    "cliCommand": "sdkmanager --list_installed  # then: sdkmanager --uninstall \"system-images;<api>;<tag>;<abi>\"",
+    "verify": false
+  }
+]

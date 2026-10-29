@@ -1,0 +1,227 @@
+[
+  {
+    "id": "npm.cache",
+    "group": "Node",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.npm/_cacache"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "npm download cache. npm fetches packages again when needed.",
+    "verify": false
+  },
+  {
+    "id": "yarn.cache",
+    "group": "Node",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Caches/Yarn"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Yarn download cache. Yarn fetches packages again when needed.",
+    "verify": false
+  },
+  {
+    "id": "pnpm.store",
+    "group": "Node",
+    "category": "flagged",
+    "tier": "yellow",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/Library/pnpm/store"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "pnpm content store. Projects hard link into it, so moving it frees nothing. Prune it instead.",
+    "cliCommand": "pnpm store prune",
+    "verify": false
+  },
+  {
+    "id": "bun.cache",
+    "group": "Node",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.bun/install/cache"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Bun install cache. Bun fetches packages again when needed.",
+    "verify": false
+  },
+  {
+    "id": "pip.cache",
+    "group": "Python",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Caches/pip"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "pip download and wheel cache. pip fetches packages again when needed.",
+    "verify": false
+  },
+  {
+    "id": "uv.cache",
+    "group": "Python",
+    "category": "flagged",
+    "tier": "green",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/.cache/uv"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "uv cache. Clean it with uv so its links stay consistent.",
+    "cliCommand": "uv cache clean",
+    "verify": false
+  },
+  {
+    "id": "conda.pkgs",
+    "group": "Python",
+    "category": "flagged",
+    "tier": "yellow",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/*conda3/pkgs"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Conda package cache. Clean it with conda.",
+    "cliCommand": "conda clean --all",
+    "verify": false
+  },
+  {
+    "id": "python38",
+    "group": "Python",
+    "category": "flagged",
+    "tier": "red",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "/Library/Frameworks/Python.framework/Versions/3.8"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Python 3.8 interpreter, end of life. Remove it manually if nothing uses it.",
+    "verify": false
+  },
+  {
+    "id": "cargo.registry",
+    "group": "Rust",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.cargo/registry/cache"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Downloaded crate archives. Cargo fetches them again when needed.",
+    "verify": false
+  },
+  {
+    "id": "go.modcache",
+    "group": "Go",
+    "category": "flagged",
+    "tier": "yellow",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/go/pkg/mod"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Go module cache. Files are read only, clean it with go.",
+    "cliCommand": "go clean -modcache",
+    "verify": false
+  },
+  {
+    "id": "spm.cache",
+    "group": "Swift",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Caches/org.swift.swiftpm"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Swift Package Manager cache. Packages resolve again when needed.",
+    "verify": false
+  },
+  {
+    "id": "cocoapods.cache",
+    "group": "CocoaPods",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Caches/CocoaPods"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "CocoaPods download cache. Pods download again on the next install.",
+    "verify": false
+  },
+  {
+    "id": "homebrew.cache",
+    "group": "Homebrew",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Caches/Homebrew"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Homebrew download cache. You can also run brew cleanup --prune=all.",
+    "verify": false
+  }
+]

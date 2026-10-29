@@ -1,0 +1,21 @@
+[
+  {
+    "id": "vmware.vms",
+    "group": "VMware Fusion",
+    "category": "flagged",
+    "tier": "red",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/Virtual Machines.localized/*.vmwarevm"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.vmware.fusion"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Virtual machine with everything inside it. Delete it from the VMware Fusion library if you no longer need it.",
+    "verify": false
+  }
+]

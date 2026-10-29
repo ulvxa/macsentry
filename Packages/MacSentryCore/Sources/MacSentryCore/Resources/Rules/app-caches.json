@@ -1,0 +1,43 @@
+[
+  {
+    "id": "appcache.generic",
+    "group": "App Caches",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "installedAppFolder": "applicationSupport",
+      "subpaths": [
+        "Cache",
+        "Code Cache",
+        "GPUCache",
+        "DawnCache",
+        "Service Worker/CacheStorage",
+        "CachedData"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Browser engine cache of an installed app. The app recreates it on the next launch.",
+    "verify": false
+  },
+  {
+    "id": "appcache.library",
+    "group": "App Caches",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "installedAppFolder": "caches",
+      "excludeBundleIDPrefixes": [
+        "com.apple."
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Cache folder of an installed app. The app recreates it when needed.",
+    "verify": false
+  }
+]
