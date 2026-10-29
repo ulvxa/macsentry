@@ -64,6 +64,7 @@ struct OrphanFixture {
     func detector(
         policy: any ProtectionPolicy = AllowAllPolicy(),
         helperBundleIDs: Set<String> = [],
+        cliTools: CLIToolInventory = .empty,
         knownToLaunchServices: Set<String> = [],
         claimed: Set<URL> = [],
     ) throws -> DefaultOrphanDetector {
@@ -73,6 +74,7 @@ struct OrphanFixture {
             allowlist: SystemAllowlist.bundled(),
             policy: policy,
             helperBundleIDs: helperBundleIDs,
+            cliTools: cliTools,
             applicationURL: { id in
                 knownToLaunchServices.contains(id) ? URL(filePath: "/Applications/\(id).app") : nil
             },

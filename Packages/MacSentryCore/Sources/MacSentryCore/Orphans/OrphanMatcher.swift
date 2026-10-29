@@ -15,9 +15,17 @@ struct OrphanMatcher {
     private let appleNames: Set<String>
     private let systemNames: Set<String>
     private let appleTokens: [String: String]
+    private let cliTools: CLIToolInventory
 
-    init(apps: [InstalledApp], extraIDs: Set<String>, allowlist: SystemAllowlist, appleTokens: [String: String] = [:]) {
+    init(
+        apps: [InstalledApp],
+        extraIDs: Set<String>,
+        allowlist: SystemAllowlist,
+        appleTokens: [String: String] = [:],
+        cliTools: CLIToolInventory = .empty,
+    ) {
         self.apps = apps
+        self.cliTools = cliTools
         let ids = Set((apps.map(\.bundleID) + extraIDs).map { $0.lowercased() }.filter { !$0.isEmpty })
         knownIDs = ids
         knownVendors = Set(ids.compactMap(Self.vendor))
@@ -50,6 +58,17 @@ struct OrphanMatcher {
         guard !normalized.isEmpty else { return false }
         // Apple app names are common words (Home, Mail, Dock), so a substring would hide real leftovers like docker.
         return appleNames.contains(normalized) || knownNames.contains { $0 == normalized || ($0.count >= 4 && normalized.contains($0)) }
+    }
+
+    func matchesCLITool(_ identity: String) -> Bool {
+        SDKVendors.tokens(of: identity).contains { token in
+            token.count >= CLIToolInventory.minimumLength
+                && (cliTools.contains(token) || SDKVendors.aliases[token].map(cliTools.contains) == true)
+        }
+    }
+
+    func isSDKVendor(_ identity: String) -> Bool {
+        SDKVendors.tokens(of: identity).contains(where: SDKVendors.tokens.contains)
     }
 
     func isInsideInstalledApp(_ url: URL) -> Bool {

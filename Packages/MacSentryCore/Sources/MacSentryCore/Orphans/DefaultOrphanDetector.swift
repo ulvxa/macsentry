@@ -12,6 +12,7 @@ public struct DefaultOrphanDetector: OrphanDetector {
     private let allowlist: SystemAllowlist
     private let policy: any ProtectionPolicy
     private let helperBundleIDs: Set<String>
+    private let cliTools: CLIToolInventory
     private let applicationURL: ApplicationLookup
     private let isClaimedByRule: RuleClaim
     private let folderSize: FolderSize
@@ -22,6 +23,7 @@ public struct DefaultOrphanDetector: OrphanDetector {
         allowlist: SystemAllowlist,
         policy: any ProtectionPolicy,
         helperBundleIDs: Set<String> = [],
+        cliTools: CLIToolInventory = .empty,
         applicationURL: @escaping ApplicationLookup,
         isClaimedByRule: @escaping RuleClaim,
         folderSize: @escaping FolderSize,
@@ -31,6 +33,7 @@ public struct DefaultOrphanDetector: OrphanDetector {
         self.allowlist = allowlist
         self.policy = policy
         self.helperBundleIDs = helperBundleIDs
+        self.cliTools = cliTools
         self.applicationURL = applicationURL
         self.isClaimedByRule = isClaimedByRule
         self.folderSize = folderSize
@@ -42,6 +45,7 @@ public struct DefaultOrphanDetector: OrphanDetector {
         allowlist: SystemAllowlist,
         policy: any ProtectionPolicy,
         helperBundleIDs: Set<String> = [],
+        cliTools: CLIToolInventory = .empty,
         applicationURL: @escaping ApplicationLookup,
         isClaimedByRule: @escaping RuleClaim,
         sizeCalculator: any SizeCalculator,
@@ -51,6 +55,7 @@ public struct DefaultOrphanDetector: OrphanDetector {
             allowlist: allowlist,
             policy: policy,
             helperBundleIDs: helperBundleIDs,
+            cliTools: cliTools,
             applicationURL: applicationURL,
             isClaimedByRule: isClaimedByRule,
             folderSize: { try await sizeCalculator.aggregate(folder: $0) },
@@ -58,7 +63,7 @@ public struct DefaultOrphanDetector: OrphanDetector {
     }
 
     public func findings(inventory: [InstalledApp], library: URL) async throws -> [OrphanFinding] {
-        let matcher = Self.matcher(inventory: inventory, helperBundleIDs: helperBundleIDs, allowlist: allowlist)
+        let matcher = Self.matcher(inventory: inventory, helperBundleIDs: helperBundleIDs, allowlist: allowlist, cliTools: cliTools)
         var results: [OrphanFinding] = []
         for location in OrphanLocation.allCases {
             try Task.checkCancellation()
@@ -100,17 +105,23 @@ public struct DefaultOrphanDetector: OrphanDetector {
         policy.check(url) == .allowed && !isClaimedByRule(url)
     }
 
-    static func matcher(inventory: [InstalledApp], helperBundleIDs: Set<String>, allowlist: SystemAllowlist) -> OrphanMatcher {
+    static func matcher(
+        inventory: [InstalledApp],
+        helperBundleIDs: Set<String>,
+        allowlist: SystemAllowlist,
+        cliTools: CLIToolInventory = .empty,
+    ) -> OrphanMatcher {
         OrphanMatcher(
             apps: inventory,
             extraIDs: helperBundleIDs.union(AppHelperIdentifiers.collect(from: inventory)),
             allowlist: allowlist,
             appleTokens: AppleAppIdentifiers.collect(from: inventory),
+            cliTools: cliTools,
         )
     }
 
     static func isOwned(_ identity: Identity, matcher: OrphanMatcher, applicationURL: ApplicationLookup) -> Bool {
-        if matcher.isKnownID(identity.value) || matcher.matchesKnownName(identity.value) {
+        if matcher.isKnownID(identity.value) || matcher.matchesKnownName(identity.value) || matcher.matchesCLITool(identity.value) {
             return true
         }
         if let program = identity.program, matcher.isInsideInstalledApp(program) {
@@ -179,6 +190,10 @@ public struct DefaultOrphanDetector: OrphanDetector {
             notes.append(location == .containers
                 ? "The container metadata could not be read, so the owner is a guess from the folder name."
                 : "The plist could not be read, so the owner is a guess from the file name.")
+        }
+        if confidence != .low, matcher.isSDKVendor(identity.value) {
+            confidence = .low
+            notes.append("It looks like data from an SDK or installer framework, which other tools and apps write on their own.")
         }
         notes += [Self.confidenceNote(confidence, identity: identity, matcher: matcher)].compactMap(\.self)
         if let note = userData.note {

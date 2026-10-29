@@ -24,10 +24,12 @@ Finds leftovers in `~/Library` from apps that are no longer installed, plus supp
    - normalized name equals or contains a `knownName` of length 4 or more
    - name starts with `com.apple.` or is in `SystemAllowlist` (`CloudDocs`, `CallHistoryDB`, `AddressBook`, `Knowledge`, `CrashReporter`, `SyncServices`, `icdd`, `FileProvider`, `iCloud`, `Dock`, `com.crashlytics`, `Google` (if any Google app installed), `Microsoft`, `Adobe` (if any Adobe app installed), `JetBrains`, `Code` (VS Code), `Python`, `Homebrew`, etc. Stored as `Resources/Rules/system-allowlist.json`)
    - it is claimed by another rule, or contains a candidate a rule already emitted. Unattributed app scope caches (`rules-engine.md`) are held back until this pass finishes and only emitted for folders it did not report, so a deleted app's leftover stays one whole orphan
+   - a token of the identity (reverse DNS parts after the TLD, minus generic words) names an installed command line tool or SDK: `CLIToolInventory`, built once per scan from directory listings only (Homebrew Cellar/Caskroom, bin dirs, npm/bun globals, Toolbox, Android SDK; roots are injected). Alias `qtproject` → `qt`
    - LaunchServices knows an app for it: `NSWorkspace.shared.urlForApplication(withBundleIdentifier:)` returns non nil
 4. Otherwise orphan. Confidence:
    - `high`: name is reverse DNS and no known id shares its first two components
    - `medium`: reverse DNS but shares vendor prefix with an installed app (`com.microsoft.teams` with Office installed)
+   - never `high` for SDK/installer vendors (`firebase`, `install4j`, `qtproject`, `sentry`, `crashlytics`, ...): they are written by other tools, so these are `low`
    - `low`: plain name with no match (could be a CLI tool's data)
 
 ## Old Version Folders
