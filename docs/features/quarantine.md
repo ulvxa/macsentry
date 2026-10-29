@@ -26,8 +26,8 @@ The only part of the app that changes the disk. Two operations exist: move into 
   "dryRun": false,
   "entries": [
     {
-      "originalPath": "/Users/ulvi/Library/Caches/Homebrew",
-      "quarantinePath": "/Users/ulvi/MacSentry Quarantine/2026-10-29_064512/Users/ulvi/Library/Caches/Homebrew",
+      "originalPath": "/Users/you/Library/Caches/Homebrew",
+      "quarantinePath": "/Users/you/MacSentry Quarantine/2026-10-29_064512/Users/you/Library/Caches/Homebrew",
       "kind": "folder",
       "ruleId": "homebrew.cache",
       "tier": "green",

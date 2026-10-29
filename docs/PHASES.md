@@ -3,7 +3,7 @@
 Each phase is one Claude Code session. Do not start a phase until the previous one passes every acceptance criterion. Commit at the end of every phase.
 
 Scope decisions locked for v1:
-- Native SwiftUI, macOS 26, personal use (no App Store, no notarization yet, open source later)
+- Native SwiftUI, macOS 26, no App Store, no notarization yet, open source (MIT)
 - Single volume. Quarantine lives on the same volume so moves are instant renames
 - Quarantined items sit until the user acts. Final delete = macOS Trash
 - Folders can be quarantined as a unit

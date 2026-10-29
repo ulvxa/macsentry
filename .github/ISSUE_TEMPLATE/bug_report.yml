@@ -1,0 +1,83 @@
+name: Bug report
+description: Something is wrong, crashes, or a scan result is incorrect.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. If MacSentry moved or could move something it should never touch, please report it privately via the Security tab instead (see SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Dev Caches
+        2. Select ...
+        3. Click Quarantine
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Scan / sizes
+        - Dev Caches
+        - App Caches
+        - Old and Large
+        - Projects
+        - Orphans
+        - Duplicates
+        - Flagged
+        - Quarantine / Trash / Restore
+        - Menu bar
+        - Settings / Full Disk Access
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: false-positive
+    attributes:
+      label: Is this a false positive (something listed that should not be)?
+      options:
+        - "No"
+        - "Yes"
+  - type: input
+    id: path
+    attributes:
+      label: Path involved (if any)
+      description: Redact your username if you like, e.g. ~/Library/Caches/com.example.app
+  - type: input
+    id: version
+    attributes:
+      label: MacSentry version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac model
+      placeholder: macOS 26.1, MacBook Pro M3
+    validations:
+      required: true
+  - type: dropdown
+    id: fda
+    attributes:
+      label: Full Disk Access granted?
+      options:
+        - "Yes"
+        - "No (limited scan)"
+        - Not sure
+  - type: textarea
+    id: logs
+    attributes:
+      label: Screenshots, logs or crash report
+      render: text

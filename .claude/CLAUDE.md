@@ -20,8 +20,9 @@ Native macOS 26 disk cleanup app. Finds reclaimable files, moves them to a quara
 - Core tests: `swift test --package-path Packages/MacSentryCore`
 - App tests: `xcodebuild -project MacSentry.xcodeproj -scheme MacSentry -destination 'platform=macOS' test`
 - Lint: `swiftlint --strict` and format: `swiftformat .` (inside a worktree use `swiftformat --config .swiftformat <dirs>`, plain `.` is a no-op there)
-- Schemes: `MacSentry` = real scan, no dry run (owner's Run button). `MacSentry Dev` = fixture `/tmp/macsentry-dev/root` + dry run (`scripts/dev-fixture.sh`)
-- Done means: build green, core tests green, lint clean
+- Schemes: `MacSentry` = real scan of the whole disk, no dry run. `MacSentry Dev` = fixture `/tmp/macsentry-dev/root` + dry run (`scripts/dev-fixture.sh`); use this one for dev
+- Release DMG: `scripts/make-dmg.sh` (writes `dist/MacSentry-<version>.dmg`)
+- Done means: build green, core tests green, lint clean. CI (`.github/workflows/ci.yml`) runs lint + core tests
 
 ## Code style
 - Services are protocols in Core with one concrete impl plus a test double
@@ -38,9 +39,10 @@ Native macOS 26 disk cleanup app. Finds reclaimable files, moves them to a quara
 - When running the app during dev, use the `MacSentry Dev` scheme or launch with `-MacSentryScanRoot <fixture dir>` and `-MacSentryDryRun YES`
 - Never run `sudo`, `rm`, or any cleanup CLI (docker, brew, xcrun simctl, ollama) yourself
 
-## Status
-- Phases 0–9 done (see `docs/PHASES.md`, git log for detail). Open: owner's manual UI checks
-- Spotlight indexing is off on the owner's Mac: old/large age = newest of Spotlight date, modified, date added (never atime)
+## Notes
+- v0.1.0 shipped; original build plan and acceptance criteria in `docs/PHASES.md`. Contributor guide: `CONTRIBUTING.md`
+- Spotlight may be off or incomplete on a user's Mac: old/large age = newest of Spotlight date, modified, date added (never atime)
+- `DEVELOPMENT_TEAM` in `project.yml` is the maintainer's; set your own locally, don't commit it
 - After merging agent worktrees, remove them (`git worktree remove --force`); `FixtureSweeper` clears test fixtures older than 30 min
 
 ## Agents

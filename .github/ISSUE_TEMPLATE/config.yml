@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security or safety vulnerability
+    url: https://github.com/ulvxa/macsentry/security/advisories/new
+    about: MacSentry moved, or could move, something it should never touch? Report it privately here.
+  - name: Contributing guide
+    url: https://github.com/ulvxa/macsentry/blob/main/CONTRIBUTING.md
+    about: Setup, schemes, safety rules and how to add a cleanup rule.

@@ -1,5 +1,7 @@
 # Agent Workflow (Claude Code)
 
+> The maintainer's original build log: how MacSentry was built phase by phase with Claude Code. Kept for reference; contributors should start with [CONTRIBUTING.md](../CONTRIBUTING.md).
+
 One phase per session. Plan first, build second, verify third, commit, `/clear`. Specs come in through `@` imports so the context only holds what the phase needs.
 
 ## 0. One Time Setup

@@ -1,0 +1,75 @@
+name: New cleanup rule
+description: Ask MacSentry to detect an app's or tool's cache, leftovers or storage hog.
+labels: [rule]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Rules live in `Packages/MacSentryCore/Sources/MacSentryCore/Resources/Rules/*.json`. Want to write it yourself? See "Adding a cleanup rule" in CONTRIBUTING.md.
+  - type: input
+    id: app
+    attributes:
+      label: App or tool
+      placeholder: e.g. Figma, Android Studio, Poetry
+    validations:
+      required: true
+  - type: input
+    id: bundle-id
+    attributes:
+      label: Bundle id (if it is an app)
+      description: "Find it with: osascript -e 'id of app \"AppName\"'"
+      placeholder: com.figma.Desktop
+  - type: textarea
+    id: paths
+    attributes:
+      label: Path(s)
+      description: Use ~ for your home folder. One per line.
+      placeholder: ~/Library/Caches/com.example.app
+    validations:
+      required: true
+  - type: input
+    id: size
+    attributes:
+      label: Typical size on your Mac
+      placeholder: 4.2 GB
+  - type: textarea
+    id: what
+    attributes:
+      label: What is stored there?
+      description: How do you know it is safe? Link docs if you have them.
+    validations:
+      required: true
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Suggested tier
+      options:
+        - Green - regenerates automatically
+        - Yellow - rebuildable but costs time or bandwidth
+        - Red - user data, review only
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: action
+    attributes:
+      label: Suggested action
+      options:
+        - Quarantine (safe to move)
+        - Flag only (must be cleaned by the tool's own command)
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Cleanup command (for flag only)
+      placeholder: e.g. poetry cache clear --all pypi
+  - type: dropdown
+    id: quit
+    attributes:
+      label: Must the app be quit before moving it?
+      options:
+        - "Yes"
+        - "No"
+        - Not sure
