@@ -19,7 +19,8 @@ Native macOS 26 disk cleanup app. Finds reclaimable files, moves them to a quara
 - Build: `xcodebuild -project MacSentry.xcodeproj -scheme MacSentry -destination 'platform=macOS' -quiet build`
 - Core tests: `swift test --package-path Packages/MacSentryCore`
 - App tests: `xcodebuild -project MacSentry.xcodeproj -scheme MacSentry -destination 'platform=macOS' test`
-- Lint: `swiftlint --strict` and format: `swiftformat .`
+- Lint: `swiftlint --strict` and format: `swiftformat .` (inside a worktree use `swiftformat --config .swiftformat <dirs>`, plain `.` is a no-op there)
+- Schemes: `MacSentry` = real scan, no dry run (owner's Run button). `MacSentry Dev` = fixture `/tmp/macsentry-dev/root` + dry run (`scripts/dev-fixture.sh`)
 - Done means: build green, core tests green, lint clean
 
 ## Code style
@@ -27,22 +28,29 @@ Native macOS 26 disk cleanup app. Finds reclaimable files, moves them to a quara
 - `async`/`await` and `AsyncThrowingStream` for long work, no Combine, no GCD unless wrapping C APIs
 - No force unwraps outside tests. Errors are typed enums conforming to `LocalizedError`
 - File URLs only (`URL`), never raw `String` paths across module boundaries
+- Name clashes: write `MacSentryCore.Category` in App (SwiftUI has `Category`), `GRDB.Database` in Core (ours is `Database`)
+- Never give a wide-range `Slider` a `step` (macOS 26 draws a tick per step and freezes); use `DraftSlider`
 
 ## Safety rules (non negotiable)
 - Never call `removeItem` anywhere. The only destructive call allowed is `FileManager.trashItem` inside `QuarantineService`
 - Every move goes through `ProtectionPolicy.check` first
 - Tests only touch temp dirs built by `FixtureBuilder`. Never read or write the real home folder in tests
-- When running the app during dev, launch with `-MacSentryScanRoot <fixture dir>` and `-MacSentryDryRun YES`
+- When running the app during dev, use the `MacSentry Dev` scheme or launch with `-MacSentryScanRoot <fixture dir>` and `-MacSentryDryRun YES`
 - Never run `sudo`, `rm`, or any cleanup CLI (docker, brew, xcrun simctl, ollama) yourself
 
-## Progress
-- P0 done: XcodeGen (arm64, team LN2CFAG956), GRDB 7.11 `Database` v1, `AppEnvironment`, `FixtureBuilder`. Use `MacSentryCore.Category` in App, `GRDB.Database` in Core
-- P1 done: one shared `ProtectionPolicyProvider` (denies all until first `refresh()`), `GlobPattern`, never-touch/ignored stores, `SettingsStore`, FDA onboarding, Settings tabs
-- P2 done: `BulkFileWalker` (getattrlistbulk), `DefaultSizeCalculator`, `DefaultScanService` + `ScanEntryHandler`s; retention keeps 5 sessions + newest finished
-- P3 done: strict JSON rules, `DefaultRuleEngine`, `OldLargeRule` (skips `~/Library`), `SystemAppInventory` (incl. /System apps); `ScanPipeline.makeService(options:control:)`
-- P4 done: Overview, treemap, lists, inspector, HUD, Flagged; totals are action-aware (`SessionTotals`: Flagged = all flagOnly, reclaimable = quarantine only)
-- P5 done: `DefaultQuarantineService` (only `trashItem` in `Trasher.swift`, renamex_np RENAME_EXCL, `journal.jsonl` + `manifest.json`, restore re-checks protection, refuses running app bundle)
-- P6 done: graveyard + Projects screen. P7 done: orphans (user-data markers → red, DB with sidecars → flagOnly) + duplicates screens, Skip Duplicates
-- P8 done: menu bar panel, `DiskMonitor`, low-space notifier, launch at login, Profiles/Projects/Duplicates/Notifications tabs
-- P9: real dry run of `/` passed (no crash, 126 MB peak, 0 protected candidates); false positives fixed; `verify` rules confirmed except `resolve.cacheClip` (app not installed). Pending owner: 3-item quarantine → trash → empty Trash check, manual UI checks
-- Hygiene: remove agent worktrees after merge; `FixtureSweeper` clears fixtures >30 min old
+## Status
+- Phases 0–9 done (see `docs/PHASES.md`, git log for detail). Open: owner's manual UI checks
+- Spotlight indexing is off on the owner's Mac: old/large age = newest of Spotlight date, modified, date added (never atime)
+- After merging agent worktrees, remove them (`git worktree remove --force`); `FixtureSweeper` clears test fixtures older than 30 min
+
+## Agents
+Use the project agents in `.claude/agents/` instead of the global developer/reviewer/skimmer when the user asks for agents:
+- `scout` (Haiku): locate code
+- `core-dev` (Sonnet): Core package
+- `app-dev` (Sonnet): App target
+- `rules-author` (Sonnet): rule JSON and its tests
+- `perf-probe` (Sonnet): measure slowness, no fixes
+- `swift-reviewer` (Sonnet): review a diff
+- `verifier` (Haiku): run the done bar
+
+`core-dev`, `app-dev` and `rules-author` own disjoint files, so they can run in parallel worktrees. The main session merges.
