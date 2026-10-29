@@ -19,6 +19,7 @@ struct ProjectsSettingsView: View {
     private static let idlePresets = [30, 90, 180, 365]
 
     @Environment(AppModel.self) private var model
+    @State private var idleDraft: Double?
 
     var body: some View {
         @Bindable var settings = model.settings
@@ -28,15 +29,15 @@ struct ProjectsSettingsView: View {
             }
             Section("Idle Projects") {
                 LabeledContent("Not touched for") {
-                    Text("\(settings.projectIdleDays) days").monospacedDigit()
+                    Text("\(idleDraft.map { Int($0.rounded()) } ?? settings.projectIdleDays) days").monospacedDigit()
                 }
-                Slider(
+                DraftSlider(
                     value: Binding(
                         get: { Double(settings.projectIdleDays) },
                         set: { settings.projectIdleDays = Int($0.rounded()) },
                     ),
+                    draft: $idleDraft,
                     in: 7 ... 730,
-                    step: 1,
                 ) {
                     Text("Idle days")
                 } minimumValueLabel: {
@@ -72,6 +73,7 @@ struct ProjectsSettingsView: View {
 
 struct DuplicatesSettingsView: View {
     @Environment(AppModel.self) private var model
+    @State private var sizeDraft: Double?
 
     var body: some View {
         @Bindable var settings = model.settings
@@ -83,13 +85,16 @@ struct DuplicatesSettingsView: View {
             }
             Section("Minimum File Size") {
                 LabeledContent("Larger than") {
-                    Text(settings.duplicateMinSizeBytes.formatted(.byteCount(style: .file))).monospacedDigit()
+                    Text((sizeDraft.map { DuplicateSizeStops.bytes(at: Int($0.rounded())) } ?? settings.duplicateMinSizeBytes)
+                        .formatted(.byteCount(style: .file)))
+                        .monospacedDigit()
                 }
-                Slider(
+                DraftSlider(
                     value: Binding(
                         get: { Double(DuplicateSizeStops.index(for: settings.duplicateMinSizeBytes)) },
                         set: { settings.duplicateMinSizeBytes = DuplicateSizeStops.bytes(at: Int($0.rounded())) },
                     ),
+                    draft: $sizeDraft,
                     in: 0 ... Double(DuplicateSizeStops.values.count - 1),
                     step: 1,
                 ) {

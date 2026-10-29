@@ -30,7 +30,7 @@ struct CandidateScreenScaffold<Content: View, InspectorExtra: View>: View {
             }
         }
         .searchable(text: $model.filter.query, placement: .toolbar, prompt: "Filter by name or path")
-        .inspector(isPresented: $app.isInspectorPresented) {
+        .deferredInspector(isPresented: $app.isInspectorPresented) {
             CandidateInspector(
                 candidates: model.focusedCandidates,
                 groupName: { app.ruleGroup(for: $0) },

@@ -36,7 +36,7 @@ private struct DuplicatesContent: View {
             }
         }
         .searchable(text: $model.query, placement: .toolbar, prompt: "Filter by name or path")
-        .inspector(isPresented: $app.isInspectorPresented) {
+        .deferredInspector(isPresented: $app.isInspectorPresented) {
             CandidateInspector(
                 candidates: model.focusedCandidates,
                 groupName: { _ in "Identical files" },
