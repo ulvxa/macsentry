@@ -20,6 +20,7 @@ public actor InMemoryCandidateStore: CandidateStore {
     private var sessionRows: [ScanSession]
     private var candidateRows: [Candidate]
     private var dirNodeRows: [DirNode]
+    private var projectRows: [Project]
     private var ignoredPaths: Set<String> = []
     private var candidateObservers: [UUID: CandidateObserver] = [:]
     private var totalsObservers: [UUID: TotalsObserver] = [:]
@@ -29,6 +30,7 @@ public actor InMemoryCandidateStore: CandidateStore {
         sessions: [ScanSession] = [],
         candidates: [Candidate] = [],
         dirNodes: [DirNode] = [],
+        projects: [Project] = [],
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         var nextSession: Int64 = (sessions.compactMap(\.id).max() ?? 0) + 1
@@ -58,6 +60,7 @@ public actor InMemoryCandidateStore: CandidateStore {
             }
             return row
         }
+        projectRows = projects
         self.now = now
     }
 
@@ -345,5 +348,13 @@ private extension Tier {
         case .yellow: 1
         case .red: 2
         }
+    }
+}
+
+public extension InMemoryCandidateStore {
+    func projects(session: Int64) -> [Project] {
+        projectRows
+            .filter { $0.sessionID == session }
+            .sorted { $0.artifactsSize != $1.artifactsSize ? $0.artifactsSize > $1.artifactsSize : ($0.id ?? 0) < ($1.id ?? 0) }
     }
 }

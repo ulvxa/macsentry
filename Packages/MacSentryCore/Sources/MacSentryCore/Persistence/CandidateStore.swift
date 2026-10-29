@@ -86,6 +86,8 @@ public protocol CandidateStore: Sendable {
     func candidate(id: Int64) async throws -> Candidate?
     func totals(session: Int64) async throws -> [Category: CategoryTotal]
     func topOffenders(session: Int64, category: Category, limit: Int) async throws -> [Candidate]
+    /// Project rows of the session, largest `artifactsSize` first.
+    func projects(session: Int64) async throws -> [Project]
 
     func observeCandidates(
         session: Int64,
