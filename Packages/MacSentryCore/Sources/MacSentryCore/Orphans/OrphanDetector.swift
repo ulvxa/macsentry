@@ -101,6 +101,12 @@ public struct OrphanExplanation: Sendable, Equatable {
     }
 }
 
+public extension OrphanExplanation {
+    static func guessedAppName(for identity: String) -> String {
+        OrphanMatcher.guessedAppName(for: identity)
+    }
+}
+
 public struct OrphanFinding: Sendable, Equatable {
     public let candidate: Candidate
     public let location: OrphanLocation

@@ -50,6 +50,7 @@ final class AppModel {
     var toast: Toast?
     var unreadableReport: UnreadableReport?
     var pendingRowSelection: PendingRowSelection?
+    var duplicatesSkippedSessionID: Int64?
     var bottomChromeInset: CGFloat = 0
     var inspectorPreferred = true
     private var inspectorForcedOpen = false
@@ -62,6 +63,8 @@ final class AppModel {
     }
 
     @ObservationIgnored var scanTask: Task<Void, Never>?
+    @ObservationIgnored var scanControl: ScanControl?
+    @ObservationIgnored var hashingTask: Task<Void, Never>?
     @ObservationIgnored private var totalsTask: Task<Void, Never>?
 
     init(

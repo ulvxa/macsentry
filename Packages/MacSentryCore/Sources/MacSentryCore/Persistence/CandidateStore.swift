@@ -107,6 +107,11 @@ public protocol CandidateStore: Sendable {
     func ancestors(of dirNodeID: Int64) async throws -> [DirNode]
     /// Number of `found` candidates at or below `path`.
     func candidateCount(underPath path: URL, session: Int64) async throws -> Int
+
+    /// Groups that still have a `found` member, largest reclaimable first.
+    func duplicateGroups(session: Int64) async throws -> [DuplicateGroup]
+    func members(ofGroup groupID: Int64) async throws -> [Candidate]
+    func changeKeeper(ofGroup groupID: Int64, to newKeeper: URL) async throws -> (group: DuplicateGroup, members: [Candidate])
 }
 
 public extension CandidateStore {

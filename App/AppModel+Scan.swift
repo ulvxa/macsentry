@@ -46,18 +46,36 @@ extension AppModel {
     func startScan() {
         guard let services, !isScanning else { return }
         let config = services.scanConfig(settings.scanRoots)
-        let stream = services.makeScanService(scanOptions).scan(config: config)
+        let control = ScanControl()
+        let stream = services.makeScanService(scanOptions, control).scan(config: config)
         toast = nil
         scanState = .scanning(ScanActivity())
-        scanTask = Task { [weak self] in
-            await self?.consume(stream)
+        scanControl = control
+        hashingTask?.cancel()
+        hashingTask = Task { [weak self] in
+            for await progress in control.hashingProgress {
+                self?.applyHashing(progress)
+            }
         }
+        scanTask = Task { [weak self] in
+            await self?.consume(stream, control: control)
+        }
+    }
+
+    func skipDuplicates() {
+        guard let scanControl, case var .scanning(activity) = scanState, !activity.duplicatesSkipped else { return }
+        scanControl.skipDuplicates()
+        activity.duplicatesSkipped = true
+        scanState = .scanning(activity)
     }
 
     func cancelScan() {
         guard isScanning else { return }
         scanTask?.cancel()
         scanTask = nil
+        if let scanControl {
+            release(scanControl)
+        }
         runningSessionID = nil
         scanState = .cancelled
         toast = Toast(kind: .scanCancelled(hasPreviousResults: currentSessionID != nil))
@@ -81,7 +99,8 @@ extension AppModel {
         self.toast = nil
     }
 
-    private func consume(_ stream: AsyncThrowingStream<ScanEvent, Error>) async {
+    private func consume(_ stream: AsyncThrowingStream<ScanEvent, Error>, control: ScanControl) async {
+        defer { release(control) }
         do {
             for try await event in stream {
                 if Task.isCancelled {
@@ -120,16 +139,33 @@ extension AppModel {
             }
         case let .phase(phase):
             activity.phase = phase
+            if phase == .lastUsed {
+                activity.hashing = nil
+            }
         case .candidates, .finished:
             return
         }
         scanState = .scanning(activity)
     }
 
+    private func applyHashing(_ progress: HashingProgress) {
+        guard case var .scanning(activity) = scanState, activity.phase != .lastUsed else { return }
+        activity.hashing = progress
+        scanState = .scanning(activity)
+    }
+
+    private func release(_ control: ScanControl) {
+        guard scanControl === control else { return }
+        hashingTask?.cancel()
+        hashingTask = nil
+        scanControl = nil
+    }
+
     private func complete(_ summary: ScanSummary) async {
         runningSessionID = nil
         switch summary.status {
         case .finished:
+            duplicatesSkippedSessionID = scanControl?.isDuplicatesSkipped == true ? summary.sessionID : nil
             scanState = .finished(summary)
             toast = Toast(kind: .scanFinished(summary), action: ToastAction(title: "Review", destination: .overview))
             await reloadSessions(preferring: summary.sessionID)

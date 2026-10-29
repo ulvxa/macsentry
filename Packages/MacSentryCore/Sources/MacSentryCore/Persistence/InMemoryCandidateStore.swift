@@ -18,8 +18,9 @@ public actor InMemoryCandidateStore: CandidateStore {
     }
 
     private var sessionRows: [ScanSession]
-    private var candidateRows: [Candidate]
+    var candidateRows: [Candidate]
     private var dirNodeRows: [DirNode]
+    var groupRows: [DuplicateGroup]
     private var ignoredPaths: Set<String> = []
     private var candidateObservers: [UUID: CandidateObserver] = [:]
     private var totalsObservers: [UUID: TotalsObserver] = [:]
@@ -29,6 +30,7 @@ public actor InMemoryCandidateStore: CandidateStore {
         sessions: [ScanSession] = [],
         candidates: [Candidate] = [],
         dirNodes: [DirNode] = [],
+        duplicateGroups: [DuplicateGroup] = [],
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         var nextSession: Int64 = (sessions.compactMap(\.id).max() ?? 0) + 1
@@ -58,6 +60,7 @@ public actor InMemoryCandidateStore: CandidateStore {
             }
             return row
         }
+        groupRows = Self.numbered(duplicateGroups)
         self.now = now
     }
 
@@ -233,7 +236,7 @@ public actor InMemoryCandidateStore: CandidateStore {
         totalsObservers[id] = nil
     }
 
-    private func notify() {
+    func notify() {
         for (id, var observer) in candidateObservers {
             let value = query(
                 session: observer.session,

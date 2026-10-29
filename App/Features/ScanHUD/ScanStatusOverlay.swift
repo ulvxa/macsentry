@@ -44,6 +44,24 @@ extension AppModel {
     }
 }
 
+extension ScanActivity {
+    var phaseTitle: String {
+        guard isHashingDuplicates else { return phase.label }
+        if duplicatesSkipped {
+            return "Skipping duplicates"
+        }
+        guard let hashing else { return phase.label }
+        return "Hashing duplicates \(hashing.done.formatted()) of \(hashing.total.formatted())"
+    }
+
+    var phaseDetail: String {
+        if isHashingDuplicates, !duplicatesSkipped, let hashing {
+            return " · \(ByteFormat.string(hashing.bytes))"
+        }
+        return " · \(filesVisited.formatted()) files · \(ByteFormat.string(bytesVisited))"
+    }
+}
+
 private struct ScanHUD: View {
     @Environment(AppModel.self) private var model
     let activity: ScanActivity
@@ -54,9 +72,10 @@ private struct ScanHUD: View {
                 .controlSize(.small)
             VStack(alignment: .leading, spacing: Space.xs) {
                 HStack(spacing: 0) {
-                    Text(activity.phase.label)
+                    Text(activity.phaseTitle)
                         .font(.callout.weight(.medium))
-                    Text(" · \(activity.filesVisited.formatted()) files · \(ByteFormat.string(activity.bytesVisited))")
+                        .monospacedDigit()
+                    Text(activity.phaseDetail)
                         .font(.callout)
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
@@ -71,6 +90,13 @@ private struct ScanHUD: View {
             .contentTransition(.identity)
             .transaction { $0.animation = nil }
             .frame(maxWidth: .infinity, alignment: .leading)
+            if activity.isHashingDuplicates, !activity.duplicatesSkipped {
+                Button("Skip Duplicates") { model.skipDuplicates() }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.small)
+                    .help("Stop looking for duplicate files and finish the rest of the scan")
+            }
             Button("Cancel") { model.cancelScan() }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.capsule)

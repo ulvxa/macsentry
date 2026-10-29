@@ -3,9 +3,10 @@ import MacSentryCore
 struct CandidateListConfiguration {
     let item: SidebarItem
     let categories: Set<MacSentryCore.Category>
-    var action: CandidateAction = .quarantine
+    var actions: Set<CandidateAction> = [.quarantine]
     var groupsByRule = false
     var defaultCheckedTiers: Set<Tier> = [.green]
+    var collapsedByDefault: Set<String> = []
     var controls: [FilterControl] = FilterControl.listControls
     var isCheckable = true
     var emptyTitle = "Nothing here above your thresholds"
@@ -24,14 +25,18 @@ struct CandidateListConfiguration {
             CandidateListConfiguration(
                 item: item,
                 categories: [.orphan],
+                actions: [.quarantine, .flagOnly],
                 defaultCheckedTiers: [],
+                collapsedByDefault: [Confidence.low.sectionTitle],
+                emptyTitle: "No leftovers found",
+                emptyMessage: "Nothing in your Library looks orphaned above your thresholds.",
                 noScanSubject: "leftover app files",
             )
         case .flagged:
             CandidateListConfiguration(
                 item: item,
                 categories: [.flagged, .orphan],
-                action: .flagOnly,
+                actions: [.flagOnly],
                 groupsByRule: true,
                 defaultCheckedTiers: [],
                 controls: [.size(label: "Size at least"), .tiers],

@@ -9,7 +9,7 @@ struct AppServices: Sendable {
     let protection: ProtectionPolicyProvider?
     let ruleGroups: [String: String]
     let scanConfig: @Sendable ([URL]) -> ScanConfig
-    let makeScanService: @Sendable (ScanPipelineOptions) -> any ScanService
+    let makeScanService: @Sendable (ScanPipelineOptions, ScanControl) -> any ScanService
 
     static func live(
         environment: AppEnvironment,
@@ -33,7 +33,7 @@ struct AppServices: Sendable {
             protection: protection,
             ruleGroups: RuleGroups.bundled(),
             scanConfig: { pipeline.config(scanRoots: $0) },
-            makeScanService: { pipeline.makeService(options: $0) },
+            makeScanService: { pipeline.makeService(options: $0, control: $1) },
         )
     }
 }
@@ -70,6 +70,12 @@ struct ScanActivity: Equatable {
     var filesVisited = 0
     var bytesVisited: Int64 = 0
     var currentPath = ""
+    var hashing: HashingProgress?
+    var duplicatesSkipped = false
+
+    var isHashingDuplicates: Bool {
+        phase == .duplicates || hashing != nil
+    }
 }
 
 struct ToastAction: Equatable {
