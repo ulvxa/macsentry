@@ -59,12 +59,12 @@ struct PipelineRuleTests {
         let harness = try Harness("MinSize")
         let backup = try harness.fixture.file("Archive/backup.bin", size: 600_000_000, created: Harness.old, modified: Harness.old)
 
-        let first = try await harness.scan(ScanPipelineOptions(thresholds: Thresholds(minSize: 500_000_000)))
+        let first = try await harness.scan(ScanPipelineOptions(thresholds: Thresholds(minSize: 500_000_000, largeFileMinSize: 0)))
         let oldLarge = try await harness.candidates(first.sessionID, in: .oldLarge)
         #expect(oldLarge.map(\.url.storagePath) == [backup.storagePath])
         #expect(oldLarge.first?.tier == .red)
 
-        let second = try await harness.scan(ScanPipelineOptions(thresholds: Thresholds(minSize: 5_000_000_000)))
+        let second = try await harness.scan(ScanPipelineOptions(thresholds: Thresholds(minSize: 5_000_000_000, largeFileMinSize: 0)))
         #expect(try await harness.candidates(second.sessionID, in: .oldLarge).isEmpty)
     }
 
@@ -90,5 +90,31 @@ struct PipelineRuleTests {
         #expect(cache.url.storagePath == installed.url("Library/Application Support/Slack/Cache").storagePath)
         #expect(cache.appBundleID == "com.tinyspeck.slackmacgap")
         #expect(try await installed.candidates(summary.sessionID, in: .orphan).isEmpty)
+    }
+
+    @Test func `huge recent files are listed beside old ones and survive the age filter`() async throws {
+        let harness = try Harness("LargeAnyAge")
+        let mebibyte = Harness.megabyte
+        let recent = try harness.fixture.file("Documents/film.mov", size: 4 * mebibyte)
+        let old = try harness.fixture.file("Documents/archive.bin", size: 2 * mebibyte, created: Harness.old, modified: Harness.old)
+        try harness.fixture.file("Documents/small.bin", size: mebibyte / 2, created: Harness.old, modified: Harness.old)
+        let thresholds = Thresholds(minAgeDays: 180, minSize: mebibyte, largeFileMinSize: 3 * mebibyte)
+
+        let summary = try await harness.scan(ScanPipelineOptions(thresholds: thresholds))
+        let found = try await harness.candidates(summary.sessionID, in: .oldLarge)
+        let byPath = Dictionary(uniqueKeysWithValues: found.map { ($0.url.storagePath, $0) })
+        #expect(byPath.count == 2)
+        #expect(byPath[recent.storagePath]?.ruleID == "oldLarge.large")
+        #expect(byPath[recent.storagePath]?.tier == .red)
+        let oldCandidate = try #require(byPath[old.storagePath])
+        #expect(oldCandidate.ruleID == "oldLarge")
+        #expect(oldCandidate.reason == OldLargeRule.rule.reason)
+        #expect(try #require(oldCandidate.lastUsedAt).timeIntervalSince(Harness.old) < 5)
+
+        let filter = CandidateFilter(categories: [.oldLarge], minFreeable: mebibyte, minAgeDays: 180)
+        let store = GRDBCandidateStore(database: harness.database)
+        let listed = try await store.candidates(session: summary.sessionID, filter: filter, sort: .default, limit: nil, offset: 0)
+        #expect(Set(listed.map(\.ruleID)) == ["oldLarge", "oldLarge.large"])
+        #expect(try CandidateFilter(minAgeDays: 180).matches(#require(byPath[recent.storagePath]), now: Date()))
     }
 }

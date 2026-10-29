@@ -50,7 +50,8 @@ struct CandidateQuery: Sendable {
             values.append(filter.minFreeable)
         }
         if let days = filter.minAgeDays {
-            clauses.append("\(Self.ageExpression(filter.ageBasis)) <= ?")
+            clauses.append("(rule_id = ? OR \(Self.ageExpression(filter.ageBasis)) <= ?)")
+            values.append(OldLargeRule.largeRule.id)
             values.append(now.timeIntervalSince1970 - Double(days) * Self.secondsPerDay)
         }
         if let term = filter.search?.trimmingCharacters(in: .whitespacesAndNewlines), !term.isEmpty {

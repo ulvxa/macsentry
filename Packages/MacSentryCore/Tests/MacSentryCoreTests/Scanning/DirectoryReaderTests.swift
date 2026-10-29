@@ -95,7 +95,7 @@ struct DirectoryReaderTests {
         )
         let raw = RawEntry(
             name: "secret", type: VREG.rawValue, device: 0, inode: 0, linkCount: 1, logicalSize: 0, allocatedSize: 0,
-            privateSize: nil, flags: 0, ownerUID: 0, created: nil, modified: nil, finderFlags: 0, error: UInt32(EACCES),
+            privateSize: nil, flags: 0, ownerUID: 0, created: nil, modified: nil, added: nil, finderFlags: 0, error: UInt32(EACCES),
         )
 
         let next = try await job.handle(raw, in: "/fixture/dir", DirectoryReader())
@@ -117,5 +117,23 @@ struct DirectoryReaderTests {
 
         #expect(pool.created >= 1)
         #expect(pool.created <= 3)
+    }
+}
+
+struct DirectoryReaderAddedTimeTests {
+    @Test func `walker reports the added to directory date`() async throws {
+        let fixture = try FixtureBuilder(name: "AddedTime")
+        let added = Date(timeIntervalSinceNow: -5 * 86400)
+        try fixture.file("a.txt", size: 1, modified: Date(timeIntervalSinceNow: -3 * 365 * 86400), added: added)
+        let entries = Mutex<[FileEntry]>([])
+
+        try await BulkFileWalker().walk(root: fixture.root, excluded: []) { entry in
+            entries.withLock { $0.append(entry) }
+            return .descend
+        }
+
+        let file = try #require(entries.withLock { $0 }.first { $0.url.lastPathComponent == "a.txt" })
+        let reported = try #require(file.added)
+        #expect(abs(reported.timeIntervalSince(added)) < 2)
     }
 }

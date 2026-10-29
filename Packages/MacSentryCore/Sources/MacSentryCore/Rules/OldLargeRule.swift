@@ -9,7 +9,19 @@ public struct OldLargeRule: Sendable {
         tier: .red,
         action: .quarantine,
         match: Match(claimWholeFolder: true),
-        reason: "Large and not used for a long time. This is your data, review it before removing.",
+        reason: "Large and not changed for a long time (last modified or added). This is your data, review it before removing.",
+    )
+
+    public static let openedReason = "Large and not opened for a long time. This is your data, review it before removing."
+
+    public static let largeRule = Rule(
+        id: "oldLarge.large",
+        group: "Old and Large",
+        category: .oldLarge,
+        tier: .red,
+        action: .quarantine,
+        match: Match(claimWholeFolder: true),
+        reason: "Very large file, whatever its age. This is your data, keep it or move it to quarantine after reviewing it.",
     )
 
     public static let installerRule = Rule(
@@ -21,6 +33,8 @@ public struct OldLargeRule: Sendable {
         match: Match(claimWholeFolder: true),
         reason: "Old installer or archive in Downloads. Download it again if you need it.",
     )
+
+    public static let rules = [rule, installerRule, largeRule]
 
     public static let installerExtensions: Set<String> = ["dmg", "pkg", "xip", "iso", "zip"]
 
@@ -57,16 +71,36 @@ public struct OldLargeRule: Sendable {
     public func evaluate(_ entry: FileEntry, sizeInfo: SizeInfo, lastUsed: Date? = nil, thresholds: Thresholds) -> RuleMatch? {
         guard entry.kind == .file || entry.kind == .package else { return nil }
         let components = PathPattern.entryComponents(entry.url)
-        guard isUnderHome(components), sizeInfo.freeable >= thresholds.minSize, isOld(entry, lastUsed: lastUsed, thresholds: thresholds),
+        let isOldEnough = sizeInfo.freeable >= thresholds.minSize && isOld(entry, lastUsed: lastUsed, thresholds: thresholds)
+        let isHuge = thresholds.largeFileMinSize > 0 && sizeInfo.freeable >= thresholds.largeFileMinSize
+        guard isOldEnough || isHuge, isUnderHome(components), !isHidden(components),
               !exclusions.contains(where: { $0.contains(components) }), !isInsideGitWorkTree(entry.url) else { return nil }
         let isInstaller = downloads.contains(components)
             && Self.installerExtensions.contains(entry.url.pathExtension.lowercased())
+        let isRootOwned = entry.ownerUID == 0 && currentUID != 0
+        if isOldEnough {
+            return RuleMatch(
+                rule: isInstaller ? Self.installerRule : Self.rule,
+                claimsFolder: entry.kind == .package,
+                isRootOwned: isRootOwned,
+                minFreeableSize: thresholds.minSize,
+            )
+        }
         return RuleMatch(
-            rule: isInstaller ? Self.installerRule : Self.rule,
+            rule: Self.largeRule,
             claimsFolder: entry.kind == .package,
-            isRootOwned: entry.ownerUID == 0 && currentUID != 0,
-            minFreeableSize: thresholds.minSize,
+            isRootOwned: isRootOwned,
+            minFreeableSize: thresholds.largeFileMinSize,
         )
+    }
+
+    /// Filesystem-only activity date: Spotlight may be off, and st_atime is not trustworthy, so use the newest of modified and added.
+    public static func activityDate(of entry: FileEntry) -> Date? {
+        [entry.modified, entry.added].compactMap(\.self).max()
+    }
+
+    private func isHidden(_ components: [String]) -> Bool {
+        components.dropFirst(homeComponents.count).contains { $0.hasPrefix(".") }
     }
 
     private func isUnderHome(_ components: [String]) -> Bool {
@@ -75,7 +109,7 @@ public struct OldLargeRule: Sendable {
 
     private func isOld(_ entry: FileEntry, lastUsed: Date?, thresholds: Thresholds) -> Bool {
         let date: Date? = switch thresholds.ageBasis {
-        case .lastUsed: lastUsed ?? entry.modified
+        case .lastUsed: [lastUsed, Self.activityDate(of: entry)].compactMap(\.self).max()
         case .modified: entry.modified
         case .created: entry.created
         }

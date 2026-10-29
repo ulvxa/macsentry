@@ -286,7 +286,7 @@ extension CandidateFilter {
               Self.allows(actions, candidate.action), Self.allows(statuses, candidate.status),
               candidate.freeableSize >= minFreeable
         else { return false }
-        if let minAgeDays {
+        if let minAgeDays, candidate.ruleID != OldLargeRule.largeRule.id {
             let cutoff = now.addingTimeInterval(-Double(minAgeDays) * 86400)
             let date = switch ageBasis {
             case .lastUsed: candidate.lastUsedAt ?? candidate.modifiedAt

@@ -173,6 +173,7 @@ struct WalkJob: Sendable {
             flags: raw.flags,
             created: raw.created,
             modified: raw.modified,
+            added: raw.added,
             ownerUID: raw.ownerUID,
         )
     }

@@ -42,10 +42,10 @@ final class RuleScanHandler: ScanEntryHandler {
         guard entry.kind != .folder else { return .descend }
         let size = context.sizeCalculator.sizeInfo(for: entry)
         guard let match = oldLarge.evaluate(entry, sizeInfo: size, thresholds: thresholds) else { return .descend }
-        return claim(entry, match: match, context: context)
+        return claim(entry, match: match, context: context, lastUsed: OldLargeRule.activityDate(of: entry))
     }
 
-    private func claim(_ entry: FileEntry, match: RuleMatch, context: ScanContext) -> HandlerDecision {
+    private func claim(_ entry: FileEntry, match: RuleMatch, context: ScanContext, lastUsed: Date? = nil) -> HandlerDecision {
         if entry.kind != .folder, context.sizeCalculator.sizeInfo(for: entry).freeable < match.minFreeableSize {
             return .descend
         }
@@ -58,6 +58,7 @@ final class RuleScanHandler: ScanEntryHandler {
             reason: match.reason,
             cliCommand: match.cliCommand(for: entry.url),
             appBundleID: match.rule.appBundleIDs.first,
+            lastUsedAt: lastUsed,
             minFreeableSize: match.minFreeableSize,
             group: match.rule.group,
         ))

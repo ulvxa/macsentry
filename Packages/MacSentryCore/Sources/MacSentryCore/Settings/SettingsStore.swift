@@ -7,6 +7,7 @@ public enum AppearancePreference: String, Sendable, CaseIterable {
 public enum SettingsKey: String, Sendable, CaseIterable {
     case minAgeDays = "thresholds.minAgeDays"
     case minSizeBytes = "thresholds.minSizeBytes"
+    case largeFileMinSizeBytes = "thresholds.largeFileMinSizeBytes"
     case ageBasis = "thresholds.ageBasis"
     case scanRoots = "scan.roots"
     case projectRoots = "projects.roots"
@@ -25,7 +26,8 @@ public enum SettingsKey: String, Sendable, CaseIterable {
     var defaultValue: Any {
         switch self {
         case .minAgeDays: 180
-        case .minSizeBytes: Int64(500_000_000)
+        case .minSizeBytes: Thresholds.defaultMinSize
+        case .largeFileMinSizeBytes: Thresholds.defaultLargeFileMinSize
         case .ageBasis: AgeBasis.lastUsed.rawValue
         case .scanRoots: ["/"]
         case .projectRoots: ["~"]
@@ -62,14 +64,20 @@ public final class SettingsStore: @unchecked Sendable {
         set { defaults.set(max(newValue, 0), forKey: SettingsKey.minSizeBytes.rawValue) }
     }
 
+    public var largeFileMinSizeBytes: Int64 {
+        get { int64(.largeFileMinSizeBytes) }
+        set { defaults.set(max(newValue, 0), forKey: SettingsKey.largeFileMinSizeBytes.rawValue) }
+    }
+
     public var ageBasis: AgeBasis {
         get { enumValue(.ageBasis, default: .lastUsed) }
         set { defaults.set(newValue.rawValue, forKey: SettingsKey.ageBasis.rawValue) }
     }
 
     public var thresholds: Thresholds {
-        get { Thresholds(minAgeDays: minAgeDays, minSize: minSizeBytes, ageBasis: ageBasis) }
+        get { Thresholds(minAgeDays: minAgeDays, minSize: minSizeBytes, ageBasis: ageBasis, largeFileMinSize: largeFileMinSizeBytes) }
         set {
+            largeFileMinSizeBytes = newValue.largeFileMinSize
             minAgeDays = newValue.minAgeDays
             minSizeBytes = newValue.minSize
             ageBasis = newValue.ageBasis

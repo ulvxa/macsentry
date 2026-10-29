@@ -18,7 +18,8 @@ Full Disk Access is tied to the code signature. Ad hoc signing changes every bui
 | key | type | default | UI |
 |---|---|---|---|
 | `thresholds.minAgeDays` | Int | 180 | Thresholds tab slider plus presets |
-| `thresholds.minSizeBytes` | Int64 | 500_000_000 | Thresholds tab log slider |
+| `thresholds.minSizeBytes` | Int64 | 100_000_000 | Thresholds tab log slider |
+| `thresholds.largeFileMinSizeBytes` | Int64 | 1_000_000_000 | Files at least this big are listed whatever their age (0 = off); no UI yet |
 | `thresholds.ageBasis` | String | `lastUsed` | Picker: Last opened, Last modified, Created |
 | `scan.roots` | [String] | `["/"]` | General tab list editor |
 | `projects.roots` | [String] | `["~"]` | Projects tab |

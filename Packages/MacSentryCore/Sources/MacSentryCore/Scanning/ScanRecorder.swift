@@ -93,21 +93,23 @@ final class ScanRecorder: Sendable {
     }
 
     func resolveLastUsed(with resolver: any LastUsedResolver) async throws -> [Candidate] {
-        let pending = inserted.filter { $0.lastUsedAt == nil }
+        let pending = inserted.filter { $0.lastUsedAt == nil || $0.category == .oldLarge }
         guard !pending.isEmpty else { return [] }
         let found = await resolver.lastUsed(for: pending.map(\.url))
         let spotlight = Dictionary(found.map { ($0.key.storagePath, $0.value) }) { first, _ in first }
 
-        var updates: [(id: Int64, date: Date)] = []
+        struct Update {
+            let id: Int64
+            let date: Date
+            let reason: String?
+        }
+        var updates: [Update] = []
         for candidate in pending {
             guard let id = candidate.id else { continue }
             let indexed = spotlight[candidate.url.storagePath]
-            let date: Date? = switch candidate.kind {
-            case .file: indexed ?? candidate.modifiedAt
-            case .folder, .package: [indexed, candidate.modifiedAt].compactMap(\.self).max()
-            }
-            if let date {
-                updates.append((id, date))
+            if let date = [indexed, candidate.lastUsedAt, candidate.modifiedAt].compactMap(\.self).max() {
+                let opened = indexed != nil && candidate.ruleID == OldLargeRule.rule.id
+                updates.append(Update(id: id, date: date, reason: opened ? OldLargeRule.openedReason : nil))
             }
         }
 
@@ -118,8 +120,8 @@ final class ScanRecorder: Sendable {
             updated += try await database.writer.write { db in
                 for update in batch {
                     try db.execute(
-                        sql: "UPDATE candidate SET last_used_at = ? WHERE id = ?",
-                        arguments: [update.date.timeIntervalSince1970, update.id],
+                        sql: "UPDATE candidate SET last_used_at = ?, reason = COALESCE(?, reason) WHERE id = ?",
+                        arguments: [update.date.timeIntervalSince1970, update.reason, update.id],
                     )
                 }
                 return try Candidate.fetchAll(db, keys: batch.map(\.id))
