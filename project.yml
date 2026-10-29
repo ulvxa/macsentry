@@ -64,6 +64,10 @@ schemes:
         MacSentryTests: [test]
     run:
       config: Debug
+      preActions:
+        - name: Dev fixture
+          settingsTarget: MacSentry
+          script: '"$SRCROOT/scripts/dev-fixture.sh" /tmp/macsentry-dev/root'
       commandLineArguments:
         "-MacSentryDryRun YES": true
         "-MacSentryScanRoot /tmp/macsentry-dev/root": true
@@ -73,6 +77,9 @@ schemes:
       gatherCoverageData: false
       targets:
         - MacSentryTests
+      preActions:
+        - name: Test scan root
+          script: mkdir -p /tmp/macsentry-tests/root
       commandLineArguments:
         "-MacSentryDryRun YES": true
         "-MacSentryScanRoot /tmp/macsentry-tests/root": true
