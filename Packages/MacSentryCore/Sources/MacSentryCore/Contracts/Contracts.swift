@@ -14,12 +14,14 @@ public struct InstalledApp: Sendable, Hashable {
     public let name: String
     public let version: String?
     public let url: URL
+    public let executable: String?
 
-    public init(bundleID: String, name: String, version: String?, url: URL) {
+    public init(bundleID: String, name: String, version: String?, url: URL, executable: String? = nil) {
         self.bundleID = bundleID
         self.name = name
         self.version = version
         self.url = url
+        self.executable = executable
     }
 }
 

@@ -35,6 +35,20 @@ public struct Match: Codable, Sendable {
     let extensions: [String]?        // for file rules
     let minAgeDays: Int?             // rule specific minimum, user threshold still applies on top
     let claimWholeFolder: Bool       // true = one candidate for the folder, stop descending
+    let installedAppFolder: InstalledAppFolder?  // one literal rule per installed app under App Support or Caches
+    let subpaths: [String]?          // with installedAppFolder
+    let appScope: AppScope?          // app owned folders below a Library root, see App Scope below
+}
+
+public struct AppScope: Codable, Sendable {
+    let root: String                 // literal, e.g. "~/Library/Application Support"
+    let names: [String]?             // folder names or short relative paths ending the match; nil = <root>/<top> itself
+    let maxDepth: Int?               // deepest the match may sit below <root>/<top> (required with names)
+    let childMarker: String?         // child that must exist inside the match, e.g. "Cache_Data"
+    let topNames: [String]?          // glob filter on <top>, e.g. "*-updater"
+    let excludeTopPrefixes: [String]?   // e.g. "com.apple."
+    let excludeSystemNames: Bool?    // skip <top> names on system-allowlist.json
+    let vendorFolders: Bool?         // also attribute <top>/<second> (Google/Chrome, BraveSoftware/Brave-Browser)
 }
 ```
 
@@ -150,6 +164,24 @@ Project level `Library/ Temp/ Obj/ Logs/` handled by `project-graveyard.md`.
 `appcache.generic`: for each installed app support folder `~/Library/Application Support/<name>`, the subfolders `Cache`, `Code Cache`, `GPUCache`, `DawnCache`, `Service Worker/CacheStorage`, `CachedData` are green Q, require app quit. Covers Discord, Slack style apps, Claude, ChatGPT, Notion, Figma, Postman, Obsidian, VS Code, Antigravity, Trello, Miro, WhatsApp desktop.
 `appcache.library`: each `~/Library/Caches/<bundle id or name>` of an installed app is green Q when app is quit. Excludes `com.apple.*`.
 
+### App scope rules (`appScope`)
+The two rules above only see `<app name>/<subfolder>` one level deep. Real Electron and Chromium apps nest their caches (`Notion/Partitions/notion/...`, `Figma/DesktopProfile/v43/...`, `Google/Chrome/Profile 1/...`) and name their folder after something other than the app (`RealtimeBoard` is Miro, `Code` is VS Code). All rows are green, Q, claim the whole folder, require app quit, category appCache.
+| id | root | matches | notes |
+|---|---|---|---|
+| appcache.chromium | `~/Library/Application Support` | `Code Cache`, `GPUCache`, `DawnCache`, `DawnWebGPUCache`, `DawnGraphiteCache`, `GraphiteDawnCache`, `ShaderCache`, `GrShaderCache`, `Service Worker/CacheStorage`, `Service Worker/ScriptCache`, `CachedData`, 1 to 4 levels below `<top>` | `com.apple.*` tops skipped |
+| appcache.chromiumHTTP | `~/Library/Application Support` | `Cache` 1 to 4 levels below `<top>`, only when it contains `Cache_Data` | the marker keeps non Chromium folders called Cache out |
+| appcache.libraryFallback | `~/Library/Caches` | every other top level folder | skips `com.apple.*` and names on `system-allowlist.json` (CloudKit, GeoServices, GameKit, icloudmailagent, Google, JetBrains...) |
+| appcache.container | `~/Library/Containers` | `<bundle id>/Data/Library/Caches` | skips `com.apple.*` |
+| appcache.updater | `~/Library/Application Support/Caches` | `*-updater` folders (electron-updater downloads) | |
+
+Never matched: `Local Storage`, `IndexedDB`, `WebStorage`, `Session Storage`, `File System`, `databases`, `Cookies`, `User`, `Service Worker/Database`, and every folder between `<top>` and the match.
+
+**Attribution.** When a scan starts, `activeRules` lists each root once (plus the children of vendor folders) and writes one rule copy per child folder, so evaluation stays a dictionary lookup on `<top>` or `<top>/<second>` plus a suffix compare on shallow entries; the only extra syscall is the `Cache_Data` lstat for folders named `Cache`. A folder belongs to an installed app when, in order: its name is the app's bundle id; it starts with `<bundle id>.` (`com.microsoft.VSCode.ShipIt`); its normalized key (lowercase, letters and digits only) equals the key of the app name, bundle file name, bundle id, `CFBundleExecutable` or the last bundle id part (`realtimeboard`); the part before its first `-` does (`unityhub-updater`). Vendor folders try `<top><second>` then `<second>` (`Google`+`Chrome`, `BraveSoftware`/`Brave-Browser`). Generic keys (`desktop`, `client`, `app`, `electron`...) and keys under 3 characters never attribute. Attributed copies take the app name as group and its bundle id, so quarantine is blocked while it runs. The rest go to group `Other App Caches` with the folder name as bundle id when it looks like one.
+
+**Precedence.** App scope hits rank by the length of their root, so any path rule on the same folder wins (Homebrew, pip, Yarn, CocoaPods, spm, Xcode, Spotify, `appcache.generic`, `appcache.library`). A scope match that is an ancestor of a path rule (`~/Library/Caches/Google` above `chrome.cache`) is skipped like any other claim.
+
+**Orphans.** An unattributed match whose `<top>` sits directly in a Library location the orphan detector scans (`Application Support`, `Caches`, `Containers`) is left to the orphan pass when that pass would call `<top>` owned by no installed app, so a deleted app's folder is reported whole (yellow orphan for App Support and Containers, green for Caches) instead of only its cache. Otherwise the rule claims it during the walk and the orphan pass skips it because it overlaps an emitted candidate. Either way a folder is counted once. `CompiledRuleSet.claims` ignores app scope rules on purpose so the orphan pass can still see deferred folders.
+
 ### Specific app extras
 | id | path | tier | act | notes |
 |---|---|---|---|---|
@@ -175,7 +207,9 @@ Project level `Library/ Temp/ Obj/ Logs/` handled by `project-graveyard.md`.
 - Rule path exists but is a symlink: skip, never resolve
 - App running at evaluation time: candidate still listed, but quarantine is blocked later with `appRunning`
 - Old version detection (`android.oldStudioConfig`, `blender.oldConfig`, `vscode.oldExt`): compare version strings with semantic compare, never mark the currently installed version
-- JSON decode uses strict decoding, unknown keys throw
+- JSON decode uses strict decoding, unknown keys throw. `appScope.owner` and `attributed` are runtime only and rejected in JSON
+- App scope names compare case insensitively; a folder created after the scan started is not attributed until the next scan
+- Rule groups shown in the App come from the catalog (`App Caches`), not from the per app copies; the per app group drives `disabledGroups` only
 
 ## UI Requirements
 - Dev Caches and App Caches screens group candidates by `group` with a collapsible header showing group total

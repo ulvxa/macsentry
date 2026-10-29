@@ -39,5 +39,131 @@
     "requiresAppQuit": true,
     "reason": "Cache folder of an installed app. The app recreates it when needed.",
     "verify": false
+  },
+  {
+    "id": "appcache.chromium",
+    "group": "App Caches",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "appScope": {
+        "root": "~/Library/Application Support",
+        "names": [
+          "Code Cache",
+          "GPUCache",
+          "DawnCache",
+          "DawnWebGPUCache",
+          "DawnGraphiteCache",
+          "GraphiteDawnCache",
+          "ShaderCache",
+          "GrShaderCache",
+          "Service Worker/CacheStorage",
+          "Service Worker/ScriptCache",
+          "CachedData"
+        ],
+        "maxDepth": 4,
+        "excludeTopPrefixes": [
+          "com.apple."
+        ],
+        "vendorFolders": true
+      },
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Chromium or Electron engine cache (compiled scripts, GPU shaders, service worker cache). The app rebuilds it on the next launch. Quit the app that owns this folder first.",
+    "verify": false
+  },
+  {
+    "id": "appcache.chromiumHTTP",
+    "group": "App Caches",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "appScope": {
+        "root": "~/Library/Application Support",
+        "names": [
+          "Cache"
+        ],
+        "maxDepth": 4,
+        "childMarker": "Cache_Data",
+        "excludeTopPrefixes": [
+          "com.apple."
+        ],
+        "vendorFolders": true
+      },
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Chromium or Electron network cache. The app downloads it again when needed. Quit the app that owns this folder first.",
+    "verify": false
+  },
+  {
+    "id": "appcache.libraryFallback",
+    "group": "App Caches",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "appScope": {
+        "root": "~/Library/Caches",
+        "excludeTopPrefixes": [
+          "com.apple."
+        ],
+        "excludeSystemNames": true
+      },
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Cache folder of an app or tool. It is recreated when needed. Quit the app that owns this folder first.",
+    "verify": false
+  },
+  {
+    "id": "appcache.container",
+    "group": "App Caches",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "appScope": {
+        "root": "~/Library/Containers",
+        "names": [
+          "Data/Library/Caches"
+        ],
+        "maxDepth": 3,
+        "excludeTopPrefixes": [
+          "com.apple."
+        ]
+      },
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Cache folder inside a sandboxed app's container. The app recreates it when needed. Quit the app first.",
+    "verify": false
+  },
+  {
+    "id": "appcache.updater",
+    "group": "App Caches",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "appScope": {
+        "root": "~/Library/Application Support/Caches",
+        "topNames": [
+          "*-updater"
+        ]
+      },
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Update download left by an app's built in updater. It is downloaded again if an update is still pending. Quit the app first.",
+    "verify": false
   }
 ]

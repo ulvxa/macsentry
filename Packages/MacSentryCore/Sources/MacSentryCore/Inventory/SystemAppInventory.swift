@@ -94,7 +94,13 @@ public struct SystemAppInventory: AppInventory, AppHelperInventory {
         let name = [plist["CFBundleName"], plist["CFBundleDisplayName"]]
             .compactMap { $0 as? String }
             .first { !$0.isEmpty } ?? fileName
-        return InstalledApp(bundleID: bundleID, name: name, version: plist["CFBundleShortVersionString"] as? String, url: url)
+        return InstalledApp(
+            bundleID: bundleID,
+            name: name,
+            version: plist["CFBundleShortVersionString"] as? String,
+            url: url,
+            executable: (plist["CFBundleExecutable"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+        )
     }
 
     private static func isApp(_ url: URL) -> Bool {

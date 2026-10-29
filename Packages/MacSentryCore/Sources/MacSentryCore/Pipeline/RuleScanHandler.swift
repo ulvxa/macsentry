@@ -7,6 +7,7 @@ final class RuleScanHandler: ScanEntryHandler {
     private let oldLarge: OldLargeRule
     private let gate: CandidateGate
     private let claims: WalkClaims
+    private let isLeftover: (@Sendable (URL) -> Bool)?
 
     init(
         engine: DefaultRuleEngine,
@@ -15,6 +16,7 @@ final class RuleScanHandler: ScanEntryHandler {
         oldLarge: OldLargeRule,
         gate: CandidateGate,
         claims: WalkClaims,
+        isLeftover: (@Sendable (URL) -> Bool)? = nil,
     ) {
         self.engine = engine
         self.rules = rules
@@ -22,12 +24,17 @@ final class RuleScanHandler: ScanEntryHandler {
         self.oldLarge = oldLarge
         self.gate = gate
         self.claims = claims
+        self.isLeftover = isLeftover
     }
 
     func visit(_ entry: FileEntry, context: ScanContext) async -> HandlerDecision {
         guard entry.kind != .symlink, !claims.contains(entry.url) else { return .descend }
         if let match = engine.evaluate(entry, rules: rules, thresholds: thresholds) {
             guard entry.kind != .folder || match.claimsFolder else { return .descend }
+            // The orphan pass reports a leftover app folder whole, a cache claimed inside it would hide that.
+            if let folder = match.unattributedFolder, isLeftover?(folder) == true {
+                return .descend
+            }
             return claim(entry, match: match, context: context)
         }
         guard entry.kind != .folder else { return .descend }

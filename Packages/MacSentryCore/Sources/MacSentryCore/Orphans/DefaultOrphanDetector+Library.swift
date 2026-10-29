@@ -7,31 +7,31 @@ extension DefaultOrphanDetector {
         var program: URL?
     }
 
-    func resolveIdentity(of item: LibraryItem, in location: OrphanLocation) -> Identity {
+    static func resolveIdentity(of url: URL, name: String, in location: OrphanLocation) -> Identity {
         switch location {
         case .containers:
-            let metadata = Self.plist(at: item.url.appending(path: Self.containerMetadataName))
+            let metadata = Self.plist(at: url.appending(path: containerMetadataName))
             if let id = metadata?["MCMMetadataIdentifier"] as? String, !id.isEmpty {
                 return Identity(value: id)
             }
-            return Identity(value: item.name, unreadable: true)
+            return Identity(value: name, unreadable: true)
         case .groupContainers:
-            return Identity(value: Self.groupContainerIdentity(item.name))
+            return Identity(value: groupContainerIdentity(name))
         case .savedApplicationState, .preferences:
-            return Identity(value: item.url.deletingPathExtension().lastPathComponent)
+            return Identity(value: url.deletingPathExtension().lastPathComponent)
         case .httpStorages:
-            let isCookies = item.url.pathExtension == "binarycookies"
-            return Identity(value: isCookies ? item.url.deletingPathExtension().lastPathComponent : item.name)
+            let isCookies = url.pathExtension == "binarycookies"
+            return Identity(value: isCookies ? url.deletingPathExtension().lastPathComponent : name)
         case .launchAgents:
-            let fallback = item.url.deletingPathExtension().lastPathComponent
-            guard let plist = Self.plist(at: item.url) else {
+            let fallback = url.deletingPathExtension().lastPathComponent
+            guard let plist = Self.plist(at: url) else {
                 return Identity(value: fallback, unreadable: true)
             }
             let program = (plist["Program"] as? String) ?? (plist["ProgramArguments"] as? [Any])?.first as? String
             let label = (plist["Label"] as? String).flatMap { $0.isEmpty ? nil : $0 }
             return Identity(value: label ?? fallback, unreadable: label == nil, program: program.map { URL(filePath: $0) })
         case .applicationSupport, .caches, .webKit, .logs:
-            return Identity(value: item.name)
+            return Identity(value: name)
         }
     }
 

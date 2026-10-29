@@ -96,6 +96,7 @@ public struct Match: Codable, Sendable, Hashable {
     public let excludeBundleIDPrefixes: [String]?
     public let versionPolicy: VersionPolicy?
     public let applyUserThresholds: Bool?
+    public let appScope: AppScope?
     /// Filled in by activeRules from the inventory, never read from JSON.
     public let referenceVersion: String?
 
@@ -111,6 +112,7 @@ public struct Match: Codable, Sendable, Hashable {
         excludeBundleIDPrefixes: [String]? = nil,
         versionPolicy: VersionPolicy? = nil,
         applyUserThresholds: Bool? = nil,
+        appScope: AppScope? = nil,
         referenceVersion: String? = nil,
     ) {
         self.paths = paths
@@ -124,12 +126,13 @@ public struct Match: Codable, Sendable, Hashable {
         self.excludeBundleIDPrefixes = excludeBundleIDPrefixes
         self.versionPolicy = versionPolicy
         self.applyUserThresholds = applyUserThresholds
+        self.appScope = appScope
         self.referenceVersion = referenceVersion
     }
 
     enum CodingKeys: String, CodingKey, CaseIterable {
         case paths, dirName, siblingMarker, extensions, minAgeDays, claimWholeFolder
-        case installedAppFolder, subpaths, excludeBundleIDPrefixes, versionPolicy, applyUserThresholds
+        case installedAppFolder, subpaths, excludeBundleIDPrefixes, versionPolicy, applyUserThresholds, appScope
     }
 
     public init(from decoder: any Decoder) throws {
@@ -146,10 +149,11 @@ public struct Match: Codable, Sendable, Hashable {
         excludeBundleIDPrefixes = try container.decodeIfPresent([String].self, forKey: .excludeBundleIDPrefixes)
         versionPolicy = try container.decodeIfPresent(VersionPolicy.self, forKey: .versionPolicy)
         applyUserThresholds = try container.decodeIfPresent(Bool.self, forKey: .applyUserThresholds)
+        appScope = try container.decodeIfPresent(AppScope.self, forKey: .appScope)
         referenceVersion = nil
     }
 
-    func with(paths: [String]?, referenceVersion: String?) -> Match {
+    func with(paths: [String]?, referenceVersion: String?, appScope: AppScope? = nil) -> Match {
         Match(
             paths: paths,
             dirName: dirName,
@@ -159,12 +163,13 @@ public struct Match: Codable, Sendable, Hashable {
             claimWholeFolder: claimWholeFolder,
             versionPolicy: versionPolicy,
             applyUserThresholds: applyUserThresholds,
+            appScope: appScope,
             referenceVersion: referenceVersion,
         )
     }
 }
 
-private enum StrictKeys {
+enum StrictKeys {
     struct AnyKey: CodingKey {
         let stringValue: String
         let intValue: Int? = nil

@@ -92,7 +92,12 @@ public struct ScanPipeline: Sendable {
     }
 
     public func activeRules(disabledGroups: Set<String> = []) async throws -> [Rule] {
-        let engine = try DefaultRuleEngine(catalog: loadCatalog(), homeURL: environment.homeURL, fileSystem: ruleFileSystem)
+        let engine = try DefaultRuleEngine(
+            catalog: loadCatalog(),
+            homeURL: environment.homeURL,
+            fileSystem: ruleFileSystem,
+            allowlist: (try? SystemAllowlist.bundled()) ?? SystemAllowlist(entries: []),
+        )
         return await engine.activeRules(
             inventory: inventory.installedApps(),
             disabledGroups: disabledGroups,
@@ -117,7 +122,12 @@ public struct ScanPipeline: Sendable {
             throw ScanPipelineError.catalogUnavailable(error.localizedDescription)
         }
         let apps = await inventory.installedApps()
-        let engine = DefaultRuleEngine(catalog: catalog, homeURL: environment.homeURL, fileSystem: ruleFileSystem)
+        let engine = DefaultRuleEngine(
+            catalog: catalog,
+            homeURL: environment.homeURL,
+            fileSystem: ruleFileSystem,
+            allowlist: allowlist,
+        )
         let rules = engine.compile(engine.activeRules(
             inventory: apps,
             disabledGroups: options.disabledGroups,
@@ -201,6 +211,8 @@ struct PreparedScan: Sendable {
             scanner: pipeline.projectScanner,
         )
         let gitTrees = GitWorkTreeCache(home: home)
+        let library = home.appending(path: "Library", directoryHint: .isDirectory)
+        let findsOrphans = WalkRules.isInside(library.storagePath, anyOf: Set(config.roots.map(\.storagePath)))
         var handlers: [any ScanEntryHandler] = [
             GraveyardScanHandler(collector: collector, gate: gate, claims: claims),
             RuleScanHandler(
@@ -210,10 +222,10 @@ struct PreparedScan: Sendable {
                 oldLarge: OldLargeRule(homeURL: home, isInsideGitWorkTree: gitTrees.contains),
                 gate: gate,
                 claims: claims,
+                isLeftover: findsOrphans ? leftoverCheck(library: library) : nil,
             ),
         ]
-        let library = home.appending(path: "Library", directoryHint: .isDirectory)
-        if WalkRules.isInside(library.storagePath, anyOf: Set(config.roots.map(\.storagePath))) {
+        if findsOrphans {
             handlers.append(OrphanScanHandler(
                 library: library,
                 apps: apps,
@@ -236,6 +248,17 @@ struct PreparedScan: Sendable {
             isInsideProject: collector.isInsideProject,
         ))
         return handlers
+    }
+}
+
+extension PreparedScan {
+    func leftoverCheck(library: URL) -> @Sendable (URL) -> Bool {
+        let probe = LeftoverProbe(
+            library: library,
+            matcher: DefaultOrphanDetector.matcher(inventory: apps, helperBundleIDs: helperBundleIDs, allowlist: allowlist),
+            applicationURL: pipeline.applicationURL,
+        )
+        return { probe.isLeftover($0) }
     }
 }
 
