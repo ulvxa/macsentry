@@ -78,17 +78,22 @@ private struct QuarantineContent: View {
     private var actionBar: some View {
         let reason = model.disabledReason()
         let count = model.actionableRows().count
+        let simulated = model.isSimulatedTrash()
         return SelectionActionBar(
             itemCount: count,
             bytes: model.actionableBytes,
             chipText: model.chipText,
             primary: SelectionAction(
-                title: count == 1 ? "Move to Trash…" : "Move \(count.formatted()) items to Trash…",
-                shortTitle: "Move to Trash…",
+                title: simulated
+                    ? "Simulate Trash…"
+                    : (count == 1 ? "Move to Trash…" : "Move \(count.formatted()) items to Trash…"),
+                shortTitle: simulated ? "Simulate Trash…" : "Move to Trash…",
                 systemImage: "trash",
                 role: .destructive,
                 disabledReason: reason,
-                hint: "Moves the selected items from quarantine to the macOS Trash after you confirm.",
+                hint: simulated
+                    ? "Dry run: only marks the entries as trashed. Nothing is moved on disk."
+                    : "Moves the selected items from quarantine to the macOS Trash after you confirm.",
             ) {
                 model.requestTrash()
             },

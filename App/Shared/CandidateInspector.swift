@@ -74,10 +74,15 @@ private struct SingleCandidateDetails<Extra: View>: View {
         let exists = FileManager.default.fileExists(atPath: candidate.url.path(percentEncoded: false))
         VStack(alignment: .leading, spacing: Space.l) {
             VStack(alignment: .leading, spacing: Space.xs) {
-                Text(candidate.name)
-                    .font(.title3.weight(.semibold))
-                    .lineLimit(3)
-                    .textSelection(.enabled)
+                HStack(alignment: .top, spacing: Space.s) {
+                    if candidate.appBundleID != nil {
+                        AppIconView(bundleID: candidate.appBundleID, fallback: candidate.url, size: 32)
+                    }
+                    Text(candidate.name)
+                        .font(.title3.weight(.semibold))
+                        .lineLimit(3)
+                        .textSelection(.enabled)
+                }
                 Text("\(candidate.kind.title) · \(candidate.category.title) · \(groupName)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
