@@ -27,12 +27,7 @@ public struct OldLargeRule: Sendable {
     public static let defaultExclusions = [
         "~/Pictures/*.photoslibrary",
         "~/Music/Music",
-        "~/Library/Mail",
-        "~/Library/Messages",
-        "~/Library/Containers/com.apple.mail",
-        "~/Library/Containers/com.apple.MobileSMS",
-        "~/Library/Group Containers/group.com.apple.mail",
-        "~/Library/Containers/com.docker.docker",
+        "~/Library",
         "~/.Trash",
     ]
 

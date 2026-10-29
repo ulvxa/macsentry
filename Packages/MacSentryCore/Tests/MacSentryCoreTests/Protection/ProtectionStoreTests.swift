@@ -63,6 +63,7 @@ struct ProtectionStoreTests {
         )
         let scannerView: any ProtectionPolicy = provider
         let quarantineView: any ProtectionPolicy = provider
+        try await provider.refresh()
         #expect(scannerView.check(target) == .allowed)
 
         try await neverTouch.add("**/ClientWork/**", note: nil)
@@ -87,9 +88,9 @@ struct ProtectionStoreTests {
             ignoredPathStore: InMemoryIgnoredPathStore(),
             appInventory: StubInventory(),
         )
-        #expect(provider.check(prefs) == .allowed)
+        #expect(provider.check(prefs) == .denied(ProtectionPolicyProvider.loadingReason))
         try await provider.refresh()
-        #expect(provider.check(prefs).isDenied)
+        #expect(provider.check(prefs) == .denied("Preferences of an installed app"))
     }
 }
 

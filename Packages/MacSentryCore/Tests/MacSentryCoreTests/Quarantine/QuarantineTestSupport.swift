@@ -47,6 +47,32 @@ struct WalkingSizeCalculator: SizeCalculator {
     }
 }
 
+struct HookedSizeCalculator: SizeCalculator {
+    let onAggregate: @Sendable (URL) async -> Void
+
+    func sizeInfo(for entry: FileEntry) -> SizeInfo {
+        WalkingSizeCalculator().sizeInfo(for: entry)
+    }
+
+    func aggregate(folder: URL) async throws -> SizeInfo {
+        let info = try await WalkingSizeCalculator().aggregate(folder: folder)
+        await onAggregate(folder)
+        return info
+    }
+}
+
+final class SwitchablePolicy: ProtectionPolicy {
+    private let denied = Mutex(false)
+
+    func deny() {
+        denied.withLock { $0 = true }
+    }
+
+    func check(_: URL) -> ProtectionVerdict {
+        denied.withLock { $0 } ? .denied("switched to deny") : .allowed
+    }
+}
+
 struct FixtureTrasher: Trasher {
     let trashDirectory: URL
 
@@ -112,15 +138,17 @@ struct QuarantineHarness {
         denied: [URL] = [],
         running: Set<String> = [],
         database: MacSentryCore.Database? = nil,
+        policy: (any ProtectionPolicy)? = nil,
+        sizeCalculator: any SizeCalculator = WalkingSizeCalculator(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) -> DefaultQuarantineService {
         DefaultQuarantineService(
             database: database ?? self.database,
             quarantineRoot: quarantineRoot,
             isDryRun: isDryRun,
-            protectionPolicy: StubProtectionPolicy(denied: Set(denied.map(\.storagePath))),
+            protectionPolicy: policy ?? StubProtectionPolicy(denied: Set(denied.map(\.storagePath))),
             appInventory: StubAppInventory(running: running),
-            sizeCalculator: WalkingSizeCalculator(),
+            sizeCalculator: sizeCalculator,
             trasher: FixtureTrasher(trashDirectory: trashDirectory),
             timeZone: Self.timeZone,
             now: now,
@@ -185,5 +213,33 @@ struct QuarantineHarness {
 
     func trashContents() -> [String] {
         (try? FileManager.default.contentsOfDirectory(atPath: trashDirectory.path(percentEncoded: false))) ?? []
+    }
+}
+
+extension QuarantineHarness {
+    func realProvider(ignored: [URL] = [], neverTouch: [String] = []) async throws -> ProtectionPolicyProvider {
+        let provider = try ProtectionPolicyProvider(
+            homeURL: home,
+            databaseURL: fixture.url("db/macsentry.sqlite"),
+            neverTouchStore: InMemoryNeverTouchStore(patterns: neverTouch),
+            ignoredPathStore: InMemoryIgnoredPathStore(urls: ignored),
+        )
+        try await provider.refresh()
+        return provider
+    }
+
+    func writeManifest(batch name: String, entries: [(original: String, quarantine: String)]) throws {
+        let items = entries.map { item in
+            """
+            {"originalPath":"\(item.original)","quarantinePath":"\(item.quarantine)","kind":"file","ruleId":"r","tier":"green",\
+            "size":1,"status":"inQuarantine"}
+            """
+        }
+        let json = """
+        {"version":1,"batch":"\(name)","createdAt":"2020-01-03T00:00:00Z","dryRun":false,"entries":[\(items.joined(separator: ","))]}
+        """
+        let url = quarantineRoot.appending(path: name).appending(path: "manifest.json")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(json.utf8).write(to: url)
     }
 }

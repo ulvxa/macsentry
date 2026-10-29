@@ -42,7 +42,8 @@ struct QuarantineTrashRestoreTests {
         #expect(!exists(batchFolder))
         let trashedBatch = try #require(harness.trashContents().first { $0.hasSuffix(batchFolder.lastPathComponent) })
         let trashedBatchURL = harness.trashDirectory.appending(path: trashedBatch)
-        #expect(try FileManager.default.contentsOfDirectory(atPath: trashedBatchURL.path(percentEncoded: false)) == ["manifest.json"])
+        let leftovers = try FileManager.default.contentsOfDirectory(atPath: trashedBatchURL.path(percentEncoded: false))
+        #expect(leftovers.sorted() == ["journal.jsonl", "manifest.json"])
         #expect(try harness.manifest(in: trashedBatchURL).entries.map(\.status) == [.trashed])
     }
 
