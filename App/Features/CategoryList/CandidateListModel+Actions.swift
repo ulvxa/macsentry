@@ -56,7 +56,7 @@ extension CandidateListModel {
             }
         }
         return candidates.filter { candidate in
-            candidate.id.map(wanted.contains) == true || groups.contains(app.ruleGroup(for: candidate.ruleID))
+            candidate.id.map(wanted.contains) == true || groups.contains(app.ruleGroup(for: candidate))
         }
     }
 

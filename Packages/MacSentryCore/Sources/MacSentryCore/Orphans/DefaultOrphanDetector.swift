@@ -58,13 +58,7 @@ public struct DefaultOrphanDetector: OrphanDetector {
     }
 
     public func findings(inventory: [InstalledApp], library: URL) async throws -> [OrphanFinding] {
-        let helperIDs = helperBundleIDs.union(AppHelperIdentifiers.collect(from: inventory))
-        let matcher = OrphanMatcher(
-            apps: inventory,
-            extraIDs: helperIDs,
-            allowlist: allowlist,
-            appleTokens: AppleAppIdentifiers.collect(from: inventory),
-        )
+        let matcher = Self.matcher(inventory: inventory, helperBundleIDs: helperBundleIDs, allowlist: allowlist)
         var results: [OrphanFinding] = []
         for location in OrphanLocation.allCases {
             try Task.checkCancellation()
@@ -86,7 +80,7 @@ public struct DefaultOrphanDetector: OrphanDetector {
         matcher: OrphanMatcher,
     ) async throws -> [OrphanFinding] {
         guard isEligible(item.url) else { return [] }
-        let identity = resolveIdentity(of: item, in: location)
+        let identity = Self.resolveIdentity(of: item.url, name: item.name, in: location)
 
         if matcher.isSystem(item.name) || matcher.isSystem(identity.value) {
             guard !item.name.lowercased().hasPrefix("com.apple.") else { return [] }
@@ -96,7 +90,7 @@ public struct DefaultOrphanDetector: OrphanDetector {
            let older = matcher.olderVersion(name: item.name, parent: nil, siblings: siblings) {
             return await olderVersionFinding(item, location: location, older: older).map { [$0] } ?? []
         }
-        if isOwned(identity, matcher: matcher) {
+        if Self.isOwned(identity, matcher: matcher, applicationURL: applicationURL) {
             return try await olderVersions(inside: item, location: location, matcher: matcher)
         }
         return await orphanFinding(item, location: location, identity: identity, matcher: matcher).map { [$0] } ?? []
@@ -106,7 +100,16 @@ public struct DefaultOrphanDetector: OrphanDetector {
         policy.check(url) == .allowed && !isClaimedByRule(url)
     }
 
-    private func isOwned(_ identity: Identity, matcher: OrphanMatcher) -> Bool {
+    static func matcher(inventory: [InstalledApp], helperBundleIDs: Set<String>, allowlist: SystemAllowlist) -> OrphanMatcher {
+        OrphanMatcher(
+            apps: inventory,
+            extraIDs: helperBundleIDs.union(AppHelperIdentifiers.collect(from: inventory)),
+            allowlist: allowlist,
+            appleTokens: AppleAppIdentifiers.collect(from: inventory),
+        )
+    }
+
+    static func isOwned(_ identity: Identity, matcher: OrphanMatcher, applicationURL: ApplicationLookup) -> Bool {
         if matcher.isKnownID(identity.value) || matcher.matchesKnownName(identity.value) {
             return true
         }

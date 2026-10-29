@@ -14,18 +14,28 @@ public struct InstalledApp: Sendable, Hashable {
     public let name: String
     public let version: String?
     public let url: URL
+    public let executable: String?
 
-    public init(bundleID: String, name: String, version: String?, url: URL) {
+    public init(bundleID: String, name: String, version: String?, url: URL, executable: String? = nil) {
         self.bundleID = bundleID
         self.name = name
         self.version = version
         self.url = url
+        self.executable = executable
     }
 }
 
 public protocol AppInventory: Sendable {
     func installedApps() async -> [InstalledApp]
     func isRunning(bundleID: String) -> Bool
+    /// Localized and executable names of running apps, for folders no installed app could be attributed to.
+    func runningAppNames() -> [String]
+}
+
+public extension AppInventory {
+    func runningAppNames() -> [String] {
+        []
+    }
 }
 
 public enum EntryKind: String, Sendable, Codable {

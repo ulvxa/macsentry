@@ -16,9 +16,14 @@ struct StubProtectionPolicy: ProtectionPolicy {
 
 struct StubAppInventory: AppInventory {
     var running: Set<String> = []
+    var runningNames: [String] = []
 
     func installedApps() async -> [InstalledApp] {
         []
+    }
+
+    func runningAppNames() -> [String] {
+        runningNames
     }
 
     func isRunning(bundleID: String) -> Bool {
@@ -137,6 +142,7 @@ struct QuarantineHarness {
         isDryRun: Bool = false,
         denied: [URL] = [],
         running: Set<String> = [],
+        runningNames: [String] = [],
         database: MacSentryCore.Database? = nil,
         policy: (any ProtectionPolicy)? = nil,
         sizeCalculator: any SizeCalculator = WalkingSizeCalculator(),
@@ -148,7 +154,7 @@ struct QuarantineHarness {
             quarantineRoot: quarantineRoot,
             isDryRun: isDryRun,
             protectionPolicy: policy ?? StubProtectionPolicy(denied: Set(denied.map(\.storagePath))),
-            appInventory: StubAppInventory(running: running),
+            appInventory: StubAppInventory(running: running, runningNames: runningNames),
             sizeCalculator: sizeCalculator,
             trasher: FixtureTrasher(trashDirectory: trashDirectory),
             timeZone: Self.timeZone,

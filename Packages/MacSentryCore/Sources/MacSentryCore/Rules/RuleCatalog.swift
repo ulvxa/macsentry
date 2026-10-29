@@ -113,9 +113,17 @@ enum RuleValidator {
             throw fail("cliCommand is only allowed on flagOnly rules")
         }
         let hasSelector = match.paths != nil || match.dirName != nil || match.extensions != nil || match.installedAppFolder != nil
-        guard hasSelector else { throw fail("match needs paths, dirName, extensions or installedAppFolder") }
+        guard hasSelector || match.appScope != nil else {
+            throw fail("match needs paths, dirName, extensions, installedAppFolder or appScope")
+        }
         if match.installedAppFolder != nil, match.paths != nil {
             throw fail("installedAppFolder and paths are mutually exclusive")
+        }
+        if let scope = match.appScope {
+            guard !hasSelector, match.versionPolicy == nil else { throw fail("appScope cannot be combined with other selectors") }
+            if let problem = scope.problem {
+                throw fail("appScope \(problem)")
+            }
         }
         try validateDependencies(rule)
         if let days = match.minAgeDays, days < 0 {

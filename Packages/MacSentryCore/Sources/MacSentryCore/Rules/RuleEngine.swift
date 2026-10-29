@@ -8,12 +8,20 @@ public struct RuleMatch: Sendable, Equatable {
     public let claimsFolder: Bool
     public let isRootOwned: Bool
     public let minFreeableSize: Int64
+    public let unattributedFolder: URL?
 
-    public init(rule: Rule, claimsFolder: Bool, isRootOwned: Bool = false, minFreeableSize: Int64 = 0) {
+    public init(
+        rule: Rule,
+        claimsFolder: Bool,
+        isRootOwned: Bool = false,
+        minFreeableSize: Int64 = 0,
+        unattributedFolder: URL? = nil,
+    ) {
         self.rule = rule
         self.claimsFolder = claimsFolder
         self.isRootOwned = isRootOwned
         self.minFreeableSize = minFreeableSize
+        self.unattributedFolder = unattributedFolder
     }
 
     private var overridesToFlagOnly: Bool {
@@ -72,6 +80,7 @@ public struct CompiledRuleSet: Sendable {
     let globbed: [(index: Int, pattern: PathPattern)]
     let selectorOnly: [Int]
     let literalAncestors: Set<String>
+    let scopeRoots: [ScopeRoot]
 
     init(rules: [Rule], homePath: String) {
         self.rules = rules
@@ -81,7 +90,7 @@ public struct CompiledRuleSet: Sendable {
         var literalAncestors = Set<String>()
         for (index, rule) in rules.enumerated() {
             let compiled = (rule.match.paths ?? []).map { PathPattern($0, home: homePath) }
-            if rule.match.paths == nil, rule.match.installedAppFolder == nil {
+            if rule.match.paths == nil, rule.match.installedAppFolder == nil, rule.match.appScope == nil {
                 selectorOnly.append(index)
             }
             for pattern in compiled {
@@ -102,6 +111,7 @@ public struct CompiledRuleSet: Sendable {
         self.globbed = globbed
         self.selectorOnly = selectorOnly
         self.literalAncestors = literalAncestors
+        scopeRoots = Self.scopeRoots(rules, homePath: homePath)
     }
 
     func isAncestorOfAnyPattern(_ components: [String], path: String) -> Bool {
@@ -130,10 +140,10 @@ public struct DefaultRuleEngine: RuleEngine {
     private static let globExpansionLimit = 256
 
     public let catalog: RuleCatalog
-    private let homePath: String
+    let homePath: String
     private let currentUID: uid_t
     private let now: @Sendable () -> Date
-    private let fileSystem: RuleFileSystem
+    let fileSystem: RuleFileSystem
 
     public init(
         catalog: RuleCatalog,
@@ -151,11 +161,23 @@ public struct DefaultRuleEngine: RuleEngine {
 
     public func activeRules(inventory: [InstalledApp], disabledGroups: Set<String>, existingPaths: (URL) -> Bool) -> [Rule] {
         let installedIDs = Set(inventory.map(\.bundleID))
+        let attribution = AppAttribution(inventory)
         var active: [Rule] = []
         var perApp: [Rule] = []
+        var listings: [String: [String]] = [:]
         for rule in catalog.rules where !disabledGroups.contains(rule.group) {
             if let folder = rule.match.installedAppFolder {
                 perApp += materialize(rule, folder: folder, inventory: inventory, disabledGroups: disabledGroups)
+                continue
+            }
+            if let scope = rule.match.appScope {
+                perApp += materialize(
+                    rule,
+                    scope: scope,
+                    attribution: attribution,
+                    disabledGroups: disabledGroups,
+                    listings: &listings,
+                )
                 continue
             }
             let installed = rule.appBundleIDs.filter(installedIDs.contains)
@@ -191,6 +213,9 @@ public struct DefaultRuleEngine: RuleEngine {
         for index in set.selectorOnly where selectorsMatch(set.rules[index], entry) {
             hits.append(.init(index: index, specificity: 0))
         }
+        if !set.scopeRoots.isEmpty {
+            hits += scopeHits(components, path: path, entry: entry, in: set)
+        }
         guard let best = hits.min(by: { isPreferred($0, over: $1, in: set) }) else { return nil }
         let rule = set.rules[best.index]
         guard passesVersionPolicy(rule, entry), passesAge(rule, entry, thresholds: thresholds) else { return nil }
@@ -203,6 +228,7 @@ public struct DefaultRuleEngine: RuleEngine {
             claimsFolder: claims,
             isRootOwned: entry.ownerUID == 0 && currentUID != 0,
             minFreeableSize: rule.match.applyUserThresholds == true ? thresholds.minSize : 0,
+            unattributedFolder: unattributedFolder(of: rule, entry: entry, components: components),
         )
     }
 

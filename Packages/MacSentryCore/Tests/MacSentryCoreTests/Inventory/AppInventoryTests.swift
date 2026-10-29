@@ -6,7 +6,7 @@ import Testing
 struct AppInventoryTests {
     @Test func `reads apps from every root with names and versions`() async throws {
         let fixture = try FixtureBuilder(name: "Inventory")
-        try fixture.bundle("Applications/Foo.app", id: "com.example.foo", name: "Foo", version: "1.2.3")
+        try fixture.bundle("Applications/Foo.app", id: "com.example.foo", name: "Foo", version: "1.2.3", executable: "FooMain")
         try fixture.bundle("Applications/Utilities/Bar.app", id: "com.example.bar", name: nil, version: nil)
         try fixture.bundle("home/Applications/Baz.app", id: "com.example.baz", name: "Baz Pro", version: "9")
         try fixture.bundle("Applications/Suite/Suite Tool.app", id: "com.example.suite", name: "Suite Tool", version: "2024")
@@ -38,6 +38,8 @@ struct AppInventoryTests {
         ])
         #expect(byID["com.example.foo"]?.version == "1.2.3")
         #expect(byID["com.example.foo"]?.url.lastPathComponent == "Foo.app")
+        #expect(byID["com.example.foo"]?.executable == "FooMain")
+        #expect(byID["com.example.bar"]?.executable == nil)
         #expect(byID["com.example.bar"]?.name == "Bar")
         #expect(byID["com.example.bar"]?.version == nil)
         #expect(byID["com.example.baz"]?.name == "Baz Pro")
@@ -99,11 +101,12 @@ struct AppInventoryTests {
 }
 
 private extension FixtureBuilder {
-    func bundle(_ relativePath: String, id: String, name: String?, version: String?) throws {
+    func bundle(_ relativePath: String, id: String, name: String?, version: String?, executable: String? = nil) throws {
         let contents = try folder("\(relativePath)/Contents")
         var plist: [String: String] = ["CFBundleIdentifier": id]
         plist["CFBundleName"] = name
         plist["CFBundleShortVersionString"] = version
+        plist["CFBundleExecutable"] = executable
         let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
         try data.write(to: contents.appending(path: "Info.plist"))
     }

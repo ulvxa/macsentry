@@ -39,5 +39,202 @@
     "requiresAppQuit": true,
     "reason": "Cache folder of an installed app. The app recreates it when needed.",
     "verify": false
+  },
+  {
+    "id": "appcache.chromium",
+    "group": "App Caches",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "appScope": {
+        "root": "~/Library/Application Support",
+        "names": [
+          "Code Cache",
+          "GPUCache",
+          "DawnCache",
+          "DawnWebGPUCache",
+          "DawnGraphiteCache",
+          "GraphiteDawnCache",
+          "ShaderCache",
+          "GrShaderCache",
+          "Service Worker/CacheStorage",
+          "Service Worker/ScriptCache",
+          "CachedData"
+        ],
+        "maxDepth": 4,
+        "excludeTopPrefixes": [
+          "com.apple."
+        ],
+        "vendorFolders": true,
+        "unattributedReason": "Chromium or Electron engine cache (compiled scripts, GPU shaders, service worker cache). It is rebuilt on the next launch. MacSentry could not tell which app owns this folder, so it cannot check whether that app is running. Quit the app that owns it before moving it."
+      },
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Chromium or Electron engine cache (compiled scripts, GPU shaders, service worker cache). The app rebuilds it on the next launch. Quit the app that owns this folder first.",
+    "verify": false
+  },
+  {
+    "id": "appcache.chromiumHTTP",
+    "group": "App Caches",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "appScope": {
+        "root": "~/Library/Application Support",
+        "names": [
+          "Cache"
+        ],
+        "maxDepth": 4,
+        "childMarker": "Cache_Data",
+        "excludeTopPrefixes": [
+          "com.apple."
+        ],
+        "vendorFolders": true,
+        "unattributedReason": "Chromium or Electron network cache. It is downloaded again when needed. MacSentry could not tell which app owns this folder, so it cannot check whether that app is running. Quit the app that owns it before moving it."
+      },
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Chromium or Electron network cache. The app downloads it again when needed. Quit the app that owns this folder first.",
+    "verify": false
+  },
+  {
+    "id": "appcache.libraryFallback",
+    "group": "App Caches",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "appScope": {
+        "root": "~/Library/Caches",
+        "excludeTopPrefixes": [
+          "com.apple."
+        ],
+        "excludeTopNames": [
+          "AddressBook",
+          "Animoji",
+          "App Store",
+          "appplaceholdersyncd",
+          "askpermissiond",
+          "assistant_service",
+          "Automator",
+          "CallHistoryDB",
+          "CallHistoryTransactions",
+          "CloudDocs",
+          "CloudKit",
+          "contactsd",
+          "ContextStoreAgent",
+          "ControlCenter",
+          "CoreSimulator",
+          "CrashReporter",
+          "destinationd",
+          "diagnostics_agent",
+          "DiagnosticReports",
+          "DifferentialPrivacy",
+          "DiskImages",
+          "Dock",
+          "embeddedBinaryValidationUtility",
+          "FaceTime",
+          "familycircled",
+          "FamilyCircle",
+          "FileProvider",
+          "GameKit",
+          "GeoServices",
+          "homeenergyd",
+          "icdd",
+          "iCloud",
+          "icloudmailagent",
+          "identityservicesd",
+          "Instruments",
+          "Knowledge",
+          "locationaccessstored",
+          "loginwindow",
+          "mbuseragent",
+          "Metadata",
+          "Metal",
+          "MobileMeAccounts",
+          "MobileSync",
+          "Music",
+          "networkserviceproxy",
+          "org.cups",
+          "PassKit",
+          "pbs",
+          "privatecloudcomputed",
+          "ProtectedCloudStorage",
+          "Quick Look",
+          "replayd",
+          "ScopedBookmarkAgent",
+          "sharedfilelistd",
+          "SKGActivityJournal",
+          "sportsd",
+          "Spotlight",
+          "stickersd",
+          "SyncServices",
+          "systemgroup.com.apple",
+          "TemporaryItems",
+          "tipsd",
+          "videosubscriptionsd",
+          "WebPush"
+        ],
+        "unattributedReason": "Cache folder of an unidentified app or tool. Review it first: tools sometimes keep more than caches here (virtual environments, browser builds). MacSentry could not tell which app owns this folder, so it cannot check whether that app is running. Quit the app that owns it before moving it.",
+        "unattributedTier": "yellow"
+      },
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Cache folder of an app or tool. It is recreated when needed. Quit the app that owns this folder first.",
+    "verify": false
+  },
+  {
+    "id": "appcache.container",
+    "group": "App Caches",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "appScope": {
+        "root": "~/Library/Containers",
+        "names": [
+          "Data/Library/Caches"
+        ],
+        "maxDepth": 3,
+        "excludeTopPrefixes": [
+          "com.apple."
+        ],
+        "unattributedReason": "Cache folder inside a sandboxed app's container. The app recreates it when needed. MacSentry could not tell which app owns this folder, so it cannot check whether that app is running. Quit the app that owns it before moving it."
+      },
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Cache folder inside a sandboxed app's container. The app recreates it when needed. Quit the app first.",
+    "verify": false
+  },
+  {
+    "id": "appcache.updater",
+    "group": "App Caches",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "appScope": {
+        "root": "~/Library/Application Support/Caches",
+        "topNames": [
+          "*-updater"
+        ],
+        "unattributedReason": "Update download left by an app's built in updater. It is downloaded again if an update is still pending. MacSentry could not tell which app owns this folder, so it cannot check whether that app is running. Quit the app that owns it before moving it."
+      },
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Update download left by an app's built in updater. It is downloaded again if an update is still pending. Quit the app first.",
+    "verify": false
   }
 ]

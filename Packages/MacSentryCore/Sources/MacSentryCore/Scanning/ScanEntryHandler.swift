@@ -14,6 +14,7 @@ public struct CandidateDraft: Sendable, Equatable {
     public var dupGroupID: Int64?
     public var lastUsedAt: Date?
     public var minFreeableSize: Int64
+    public var group: String?
 
     public init(
         category: Category,
@@ -28,6 +29,7 @@ public struct CandidateDraft: Sendable, Equatable {
         dupGroupID: Int64? = nil,
         lastUsedAt: Date? = nil,
         minFreeableSize: Int64 = 0,
+        group: String? = nil,
     ) {
         self.category = category
         self.ruleID = ruleID
@@ -41,6 +43,7 @@ public struct CandidateDraft: Sendable, Equatable {
         self.dupGroupID = dupGroupID
         self.lastUsedAt = lastUsedAt
         self.minFreeableSize = minFreeableSize
+        self.group = group
     }
 }
 
@@ -79,6 +82,7 @@ public struct ScanContext: Sendable {
             confidence: draft.confidence,
             projectID: draft.projectID,
             dupGroupID: draft.dupGroupID,
+            group: draft.group,
         )
     }
 }

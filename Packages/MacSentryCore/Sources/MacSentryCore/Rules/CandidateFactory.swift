@@ -33,6 +33,7 @@ public enum CandidateFactory {
             createdAt: entry.created,
             modifiedAt: entry.modified,
             lastUsedAt: lastUsed,
+            group: match.rule.group,
         )
     }
 }

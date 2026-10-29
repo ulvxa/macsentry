@@ -20,6 +20,7 @@ public actor DefaultQuarantineService: QuarantineService {
     let runningAppURL: URL
     let logger = Logger(subsystem: "com.macsentry.core", category: "Quarantine")
     var activeBatchIDs: Set<Int64> = []
+    private var runningAppKeys: Set<String>?
 
     public init(
         database: Database,
@@ -66,6 +67,15 @@ public actor DefaultQuarantineService: QuarantineService {
         )
     }
 
+    /// Best effort for caches no installed app was attributed to: block when a running app's name matches the owning folder.
+    private func isUnattributedOwnerRunning(_ url: URL) -> Bool {
+        let keys = AppScope.ownerKeys(ofCandidateAt: url)
+        guard !keys.isEmpty else { return false }
+        let running = runningAppKeys ?? Set(appInventory.runningAppNames().map(AppAttribution.key))
+        runningAppKeys = running
+        return keys.contains(where: running.contains)
+    }
+
     public static func quarantineRoot(home: URL) -> URL {
         home.appending(path: folderName, directoryHint: .isDirectory)
     }
@@ -75,6 +85,7 @@ public actor DefaultQuarantineService: QuarantineService {
         progress: (@Sendable (QuarantineProgress) -> Void)?,
     ) async -> QuarantineResult {
         let startedAt = now()
+        runningAppKeys = nil
         var batch: QuarantineBatch?
         var moved: [QuarantineEntry] = []
         var failed: [QuarantineFailure] = []
@@ -124,6 +135,9 @@ public actor DefaultQuarantineService: QuarantineService {
         let info = try preflight(candidate)
         try await verifyUnchanged(candidate, info: info)
         if let bundleID = candidate.appBundleID, appInventory.isRunning(bundleID: bundleID) {
+            throw .appRunning
+        }
+        if candidate.appBundleID == nil, candidate.category == .appCache, isUnattributedOwnerRunning(candidate.url) {
             throw .appRunning
         }
 

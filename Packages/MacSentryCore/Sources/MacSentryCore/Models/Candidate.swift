@@ -25,6 +25,7 @@ public struct Candidate: Codable, Sendable, Equatable, FetchableRecord, MutableP
     public var projectID: Int64?
     public var dupGroupID: Int64?
     public var status: CandidateStatus
+    public var group: String?
 
     public var url: URL {
         get { URL(storagePath: path) }
@@ -53,6 +54,7 @@ public struct Candidate: Codable, Sendable, Equatable, FetchableRecord, MutableP
         projectID: Int64? = nil,
         dupGroupID: Int64? = nil,
         status: CandidateStatus = .found,
+        group: String? = nil,
     ) {
         self.id = id
         self.sessionID = sessionID
@@ -75,6 +77,7 @@ public struct Candidate: Codable, Sendable, Equatable, FetchableRecord, MutableP
         self.projectID = projectID
         self.dupGroupID = dupGroupID
         self.status = status
+        self.group = group
     }
 
     public mutating func didInsert(_ inserted: InsertionSuccess) {
@@ -103,5 +106,6 @@ public struct Candidate: Codable, Sendable, Equatable, FetchableRecord, MutableP
         case projectID = "project_id"
         case dupGroupID = "dup_group_id"
         case status
+        case group = "rule_group"
     }
 }

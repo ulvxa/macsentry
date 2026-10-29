@@ -14,7 +14,8 @@ struct RuleCatalogTests {
         "npm.cache", "yarn.cache", "pnpm.store", "bun.cache", "pip.cache", "uv.cache", "conda.pkgs", "python38",
         "cargo.registry", "go.modcache", "spm.cache", "cocoapods.cache", "homebrew.cache",
         "adobe.mediaCache", "adobe.mediaCacheDB", "adobe.caches", "resolve.cacheClip", "blender.oldConfig",
-        "appcache.generic", "appcache.library",
+        "appcache.generic", "appcache.library", "appcache.chromium", "appcache.chromiumHTTP", "appcache.libraryFallback",
+        "appcache.container", "appcache.updater",
         "vscode.vsix", "vscode.oldExt", "chrome.cache", "spotify.cache", "spotify.offline", "steam.httpCache",
         "steam.games", "telegram.media", "mobileSync.backups", "arduino.staging",
         "mail.downloads", "logs.user", "crashReports", "zoom.recordings",
@@ -122,6 +123,57 @@ struct RuleCatalogTests {
     @Test func `cli command on quarantine rule is rejected`() {
         let rule = RuleTestKit.rule("t.cli", paths: ["~/x"], cliCommand: "echo")
         #expect(throws: RuleCatalogError.invalidRule(id: "t.cli", reason: "cliCommand is only allowed on flagOnly rules")) {
+            try RuleCatalog(rules: [rule])
+        }
+    }
+
+    @Test func `app scope decodes strictly and its runtime owner cannot come from JSON`() throws {
+        let scoped = Self.validRule.replacingOccurrences(
+            of: "\"paths\":[\"~/x\"]",
+            with: "\"appScope\":{\"root\":\"~/Library/Caches\",\"excludeTopPrefixes\":[\"com.apple.\"]}",
+        )
+        let rules = try RuleCatalog.decode(Data("[\(scoped)]".utf8), file: "inline.json")
+        #expect(rules.first?.match.appScope?.root == "~/Library/Caches")
+        #expect(rules.first?.match.appScope?.owner == nil)
+        for extra in [",\"owner\":\"x\"", ",\"attributed\":true", ",\"recursive\":true"] {
+            let json = scoped.replacingOccurrences(of: "\"~/Library/Caches\",", with: "\"~/Library/Caches\"\(extra),")
+            #expect(throws: RuleCatalogError.self) { try RuleCatalog.decode(Data("[\(json)]".utf8), file: "inline.json") }
+        }
+    }
+
+    @Test(arguments: [
+        AppScope(root: "Library/Caches"),
+        AppScope(root: "~/Library/*"),
+        AppScope(root: "~/Library/Caches", names: ["Cache"]),
+        AppScope(root: "~/Library/Caches", maxDepth: 2),
+        AppScope(root: "~/Library/Caches", names: ["Service Worker/CacheStorage"], maxDepth: 1),
+        AppScope(root: "~/Library/Caches", names: ["*Cache"], maxDepth: 2),
+        AppScope(root: "~/Library/Caches", names: ["Cache"], maxDepth: 2, childMarker: "a/b"),
+    ])
+    func `invalid app scope is rejected at load`(scope: AppScope) {
+        let rule = Rule(
+            id: "t.scope",
+            group: "Test",
+            category: .appCache,
+            tier: .green,
+            action: .quarantine,
+            match: Match(claimWholeFolder: true, appScope: scope),
+            reason: "Test.",
+        )
+        #expect(throws: RuleCatalogError.self) { try RuleCatalog(rules: [rule]) }
+    }
+
+    @Test func `app scope cannot be combined with paths`() {
+        let rule = Rule(
+            id: "t.both",
+            group: "Test",
+            category: .appCache,
+            tier: .green,
+            action: .quarantine,
+            match: Match(paths: ["~/x"], claimWholeFolder: true, appScope: AppScope(root: "~/Library/Caches")),
+            reason: "Test.",
+        )
+        #expect(throws: RuleCatalogError.invalidRule(id: "t.both", reason: "appScope cannot be combined with other selectors")) {
             try RuleCatalog(rules: [rule])
         }
     }

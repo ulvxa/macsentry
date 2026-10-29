@@ -33,7 +33,7 @@ struct CandidateScreenScaffold<Content: View, InspectorExtra: View>: View {
         .inspector(isPresented: $app.isInspectorPresented) {
             CandidateInspector(
                 candidates: model.focusedCandidates,
-                groupName: { app.ruleGroup(for: $0.ruleID) },
+                groupName: { app.ruleGroup(for: $0) },
                 blockReason: model.blockReason,
                 quickLook: { candidate in model.quickLookURL = candidate.url },
                 extra: inspectorExtra,

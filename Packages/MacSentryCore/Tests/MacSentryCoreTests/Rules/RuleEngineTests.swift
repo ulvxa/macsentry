@@ -276,7 +276,11 @@ struct RuleEngineVersionAndAppTests {
         #expect(engine.match(library, inventory: inventory)?.rule.id == "appcache.library")
         #expect(engine.match(safariCache, inventory: inventory) == nil)
         #expect(engine.match(safariSupport, inventory: inventory)?.rule.id == "appcache.generic")
-        #expect(engine.match(gpu, inventory: []) == nil)
+        let unattributed = try #require(engine.match(gpu, inventory: []))
+        #expect(unattributed.rule.id == "appcache.chromium")
+        #expect(unattributed.rule.group == AppScope.otherGroup)
+        #expect(unattributed.unattributedFolder?.lastPathComponent == "discord")
+        #expect(gpuMatch.unattributedFolder == nil)
     }
 
     @Test func `specific catalog rule beats the generic app cache on the same path`() throws {

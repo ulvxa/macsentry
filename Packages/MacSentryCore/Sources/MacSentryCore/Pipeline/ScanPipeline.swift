@@ -201,6 +201,9 @@ struct PreparedScan: Sendable {
             scanner: pipeline.projectScanner,
         )
         let gitTrees = GitWorkTreeCache(home: home)
+        let library = home.appending(path: "Library", directoryHint: .isDirectory)
+        let findsOrphans = WalkRules.isInside(library.storagePath, anyOf: Set(config.roots.map(\.storagePath)))
+        let deferred = findsOrphans ? DeferredAppCaches(library: library) : nil
         var handlers: [any ScanEntryHandler] = [
             GraveyardScanHandler(collector: collector, gate: gate, claims: claims),
             RuleScanHandler(
@@ -210,10 +213,10 @@ struct PreparedScan: Sendable {
                 oldLarge: OldLargeRule(homeURL: home, isInsideGitWorkTree: gitTrees.contains),
                 gate: gate,
                 claims: claims,
+                deferred: deferred,
             ),
         ]
-        let library = home.appending(path: "Library", directoryHint: .isDirectory)
-        if WalkRules.isInside(library.storagePath, anyOf: Set(config.roots.map(\.storagePath))) {
+        if findsOrphans {
             handlers.append(OrphanScanHandler(
                 library: library,
                 apps: apps,
@@ -223,6 +226,7 @@ struct PreparedScan: Sendable {
                 applicationURL: pipeline.applicationURL,
                 rules: rules,
                 gate: gate,
+                deferred: deferred,
             ))
         }
         handlers.append(DuplicateScanHandler(

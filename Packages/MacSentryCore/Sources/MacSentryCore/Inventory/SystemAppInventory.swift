@@ -13,15 +13,18 @@ public struct SystemAppInventory: AppInventory, AppHelperInventory {
     public let appRoots: [URL]
     public let editorRoots: [URL]
     private let runningBundleIDs: @Sendable () -> Set<String>
+    private let runningNames: @Sendable () -> [String]
 
     public init(
         appRoots: [URL],
         editorRoots: [URL] = [],
         runningBundleIDs: @escaping @Sendable () -> Set<String> = SystemAppInventory.liveRunningBundleIDs,
+        runningAppNames: @escaping @Sendable () -> [String] = SystemAppInventory.liveRunningAppNames,
     ) {
         self.appRoots = appRoots
         self.editorRoots = editorRoots
         self.runningBundleIDs = runningBundleIDs
+        runningNames = runningAppNames
     }
 
     public static func standard(homeURL: URL) -> SystemAppInventory {
@@ -68,6 +71,10 @@ public struct SystemAppInventory: AppInventory, AppHelperInventory {
         runningBundleIDs().contains(bundleID)
     }
 
+    public func runningAppNames() -> [String] {
+        runningNames()
+    }
+
     public func helperBundleIDs(of app: InstalledApp) -> [String] {
         var seen = Set<String>()
         return Self.helperFolders
@@ -84,6 +91,14 @@ public struct SystemAppInventory: AppInventory, AppHelperInventory {
         #endif
     }
 
+    public static let liveRunningAppNames: @Sendable () -> [String] = {
+        #if canImport(AppKit)
+            NSWorkspace.shared.runningApplications.flatMap { [$0.localizedName, $0.executableURL?.lastPathComponent].compactMap(\.self) }
+        #else
+            []
+        #endif
+    }
+
     static func readApp(at url: URL) -> InstalledApp? {
         let plistURL = url.appending(path: "Contents/Info.plist", directoryHint: .notDirectory)
         guard let data = try? Data(contentsOf: plistURL),
@@ -94,7 +109,13 @@ public struct SystemAppInventory: AppInventory, AppHelperInventory {
         let name = [plist["CFBundleName"], plist["CFBundleDisplayName"]]
             .compactMap { $0 as? String }
             .first { !$0.isEmpty } ?? fileName
-        return InstalledApp(bundleID: bundleID, name: name, version: plist["CFBundleShortVersionString"] as? String, url: url)
+        return InstalledApp(
+            bundleID: bundleID,
+            name: name,
+            version: plist["CFBundleShortVersionString"] as? String,
+            url: url,
+            executable: (plist["CFBundleExecutable"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+        )
     }
 
     private static func isApp(_ url: URL) -> Bool {
