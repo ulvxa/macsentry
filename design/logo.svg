@@ -1,30 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2b3a67"/>
-      <stop offset="1" stop-color="#0d1430"/>
+      <stop offset="0" stop-color="#3a3a3a"/>
+      <stop offset="1" stop-color="#0a0a0a"/>
     </linearGradient>
     <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#f4f6fa"/>
-      <stop offset="1" stop-color="#a9b1c2"/>
+      <stop offset="0" stop-color="#f5f5f5"/>
+      <stop offset="1" stop-color="#a8a8a8"/>
     </linearGradient>
     <linearGradient id="sclera" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#dfe5ef"/>
+      <stop offset="1" stop-color="#e2e2e2"/>
     </linearGradient>
     <radialGradient id="iris" cx="0.45" cy="0.4" r="0.65">
-      <stop offset="0" stop-color="#7fd3ff"/>
-      <stop offset="0.55" stop-color="#2f8ee8"/>
-      <stop offset="1" stop-color="#14408f"/>
+      <stop offset="0" stop-color="#d0d0d0"/>
+      <stop offset="0.55" stop-color="#7a7a7a"/>
+      <stop offset="1" stop-color="#2e2e2e"/>
     </radialGradient>
     <linearGradient id="base" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#e3e7ef"/>
-      <stop offset="1" stop-color="#8a93a6"/>
+      <stop offset="0" stop-color="#e5e5e5"/>
+      <stop offset="1" stop-color="#8c8c8c"/>
     </linearGradient>
     <linearGradient id="display" x1="216" y1="0" x2="560" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#1b2547"/>
-      <stop offset="0.55" stop-color="#1f3566"/>
-      <stop offset="1" stop-color="#1f3566" stop-opacity="0"/>
+      <stop offset="0" stop-color="#1c1c1c"/>
+      <stop offset="0.55" stop-color="#2a2a2a"/>
+      <stop offset="1" stop-color="#2a2a2a" stop-opacity="0"/>
     </linearGradient>
     <clipPath id="screenClip">
       <path d="M238 318 H560 C690 318 790 380 852 470 C790 560 690 622 560 622 H238 a22 22 0 0 1 -22 -22 V340 a22 22 0 0 1 22 -22 Z"/>
@@ -42,18 +42,18 @@
     <path d="M238 318 H560 C690 318 790 380 852 470 C790 560 690 622 560 622 H238 a22 22 0 0 1 -22 -22 V340 a22 22 0 0 1 22 -22 Z" fill="url(#sclera)"/>
     <g clip-path="url(#screenClip)">
       <rect x="216" y="318" width="344" height="304" fill="url(#display)"/>
-      <rect x="248" y="360" width="150" height="16" rx="8" fill="#7fd3ff" opacity="0.85"/>
-      <rect x="248" y="396" width="110" height="16" rx="8" fill="#7fd3ff" opacity="0.55"/>
-      <rect x="248" y="432" width="170" height="16" rx="8" fill="#7fd3ff" opacity="0.4"/>
-      <rect x="248" y="468" width="90" height="16" rx="8" fill="#7fd3ff" opacity="0.3"/>
+      <rect x="248" y="360" width="150" height="16" rx="8" fill="#d0d0d0" opacity="0.85"/>
+      <rect x="248" y="396" width="110" height="16" rx="8" fill="#d0d0d0" opacity="0.55"/>
+      <rect x="248" y="432" width="170" height="16" rx="8" fill="#d0d0d0" opacity="0.4"/>
+      <rect x="248" y="468" width="90" height="16" rx="8" fill="#d0d0d0" opacity="0.3"/>
       <circle cx="610" cy="470" r="132" fill="url(#iris)"/>
-      <circle cx="610" cy="470" r="132" fill="none" stroke="#0b2a66" stroke-width="10"/>
-      <circle cx="610" cy="470" r="58" fill="#06102a"/>
+      <circle cx="610" cy="470" r="132" fill="none" stroke="#1a1a1a" stroke-width="10"/>
+      <circle cx="610" cy="470" r="58" fill="#050505"/>
       <circle cx="575" cy="432" r="26" fill="#ffffff" opacity="0.9"/>
       <circle cx="648" cy="508" r="10" fill="#ffffff" opacity="0.6"/>
     </g>
     <!-- base -->
     <path d="M150 660 H700 L668 702 a22 22 0 0 1 -18 9 H198 a22 22 0 0 1 -18 -9 Z" fill="url(#base)"/>
-    <rect x="370" y="660" width="110" height="12" rx="6" fill="#7b8396"/>
+    <rect x="370" y="660" width="110" height="12" rx="6" fill="#7a7a7a"/>
   </g>
 </svg>
