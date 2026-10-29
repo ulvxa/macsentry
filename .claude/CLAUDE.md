@@ -37,5 +37,6 @@ Native macOS 26 disk cleanup app. Finds reclaimable files, moves them to a quara
 
 ## Progress
 - Phase 0 done: XcodeGen project (arm64, team LN2CFAG956), Core pkg (GRDB 7.11), `Database` v1, models, `AppEnvironment`, `FixtureBuilder` (in `MacSentryTestSupport`), sidebar shell. Gotchas: use `MacSentryCore.Category` in App (ObjC clash), `GRDB.Database` inside Core
+- Phase 1 done: `ProtectionPolicyProvider` (single shared policy, `refresh()` after store changes), `GlobPattern`, never-touch/ignored stores, `SettingsStore` (all keys), `SystemPermissionService`, onboarding sheet, Settings tabs General/Thresholds/Never Touch/Appearance
 - Phase 2 done: `BulkFileWalker` (getattrlistbulk), `DefaultSizeCalculator`, `DefaultScanService` with pluggable `ScanEntryHandler`s (visit concurrently → descend/skip/claim, post-walk `finish`). Package freeable rides in `FileEntry.privateSize`; re-streamed candidates must be upserted by id
 - Core parts landed (not yet wired into scan): rules engine + JSON catalog + `SystemAppInventory` (P3), `CandidateStore` (P4), `DefaultQuarantineService` (P5, only `trashItem` lives in `Trasher.swift`), `GraveyardCollector` (P6), orphan + duplicate finders (P7), `DiskMonitor` (P8)

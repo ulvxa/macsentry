@@ -110,7 +110,10 @@ struct ScanSessionTests {
         let consumer = Task {
             for try await _ in service.scan(config: ScanConfig(roots: [fixture.root], maxConcurrency: 4)) {}
         }
-        try await Task.sleep(for: .milliseconds(400))
+        let startedAt = ContinuousClock.now
+        while handler.entries.count < 300, ContinuousClock.now - startedAt < .seconds(5) {
+            try await Task.sleep(for: .milliseconds(10))
+        }
         consumer.cancel()
         let cancelledAt = ContinuousClock.now
 
