@@ -12,6 +12,7 @@ The only part of the app that changes the disk. Two operations exist: move into 
   README.txt
   2026-10-29_064512/
     manifest.json
+    journal.jsonl
     Users/ulvi/Library/Developer/Xcode/DerivedData/
     Users/ulvi/Library/Caches/Homebrew/
 ```
@@ -36,6 +37,8 @@ The only part of the app that changes the disk. Two operations exist: move into 
   ]
 }
 ```
+`journal.jsonl` gets one appended line per entry status change, and reconcile replays it on top of the manifest, so changes made after the last manifest flush survive a crash. Dry run batches write no journal.
+
 The manifest is the source of truth if the DB is lost. On launch, `QuarantineService.reconcile()` rebuilds `quarantine_entry` rows from manifests and marks entries whose files vanished as `missing`.
 
 ## API
@@ -71,7 +74,7 @@ public enum MoveFailure: String, Error, Sendable {
 6. Compute destination `<batch>/<originalPath without leading slash>`, create intermediate dirs
 7. `rename(2)` via `FileManager.moveItem`. `EXDEV` → `crossDevice` (never fall back to copy). `EACCES/EPERM` → `permissionDenied`
 8. Insert `quarantine_entry`, append to manifest, set candidate status `quarantined`
-9. Dry run: skip step 7, still record with `dry_run = 1` batch, UI shows Dry Run badge
+9. Dry run: skip step 7, still record with `dry_run = 1` batch, UI shows Dry Run badge. Dry run batches cannot really be trashed: the actions read "Simulate Move to Trash" / "Mark as Trashed" and only change status
 
 ## Trash
 - `FileManager.trashItem(at:resultingItemURL:)` on the quarantine path, store `trash_path`
@@ -79,6 +82,7 @@ public enum MoveFailure: String, Error, Sendable {
 - UI never offers Empty Trash. It shows "X GB is in the Trash, empty it to free space" with a button that opens the Trash in Finder
 
 ## Restore
+- The original path is checked against `ProtectionPolicy` again (`protected` otherwise); the quarantine path must resolve inside its batch folder and not be a symlink (`outsideQuarantine`); the running MacSentry bundle is never moved
 - Destination must not exist (`destinationExists` otherwise), parent dirs recreated with original permissions not tracked (acceptable for caches)
 - Restore of an item already trashed is not supported in v1, UI shows "Restore from Trash using Finder Put Back"
 

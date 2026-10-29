@@ -35,7 +35,7 @@ Full Disk Access is tied to the code signature. Ad hoc signing changes every bui
 | `appearance` | String | `system` | Appearance |
 | `limitedMode` | Bool | false | hidden |
 
-Launch arguments override defaults for dev (`-MacSentryScanRoot`, `-MacSentryDryRun`, `-MacSentryDatabasePath`), read once by `AppEnvironment`.
+Launch arguments override defaults for dev (`-MacSentryScanRoot`, `-MacSentryDryRun`, `-MacSentryDatabasePath`), read once by `AppEnvironment`. Only the "MacSentry Dev" Xcode scheme passes them; the "MacSentry" scheme runs a real scan.
 
 ## Settings Window Tabs
 - **General**: scan roots, menu bar, launch at login, Full Disk Access status with button

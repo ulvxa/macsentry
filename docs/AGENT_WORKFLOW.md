@@ -85,6 +85,8 @@ mkdir -p Library/Developer/Xcode/DerivedData/Foo && mkfile 300m Library/Develope
 mkdir -p code/oldapp/node_modules/x && echo '{}' > code/oldapp/package.json && mkfile 200m code/oldapp/node_modules/x/big
 cd code/oldapp && git init -q && git commit -q --allow-empty -m init && cd -
 
+# or just run the "MacSentry Dev" Xcode scheme: it builds /tmp/macsentry-dev/root via scripts/dev-fixture.sh and passes the flags below.
+# The "MacSentry" scheme is a real scan without dry run.
 # run the built app pointed at it
 APP=$(find ~/Library/Developer/Xcode/DerivedData -path "*Build/Products/Debug/MacSentry.app" -maxdepth 6 | head -1)
 open "$APP" --args -MacSentryScanRoot /tmp/ms-playground -MacSentryDryRun YES -MacSentryDatabasePath /tmp/ms.sqlite

@@ -32,7 +32,7 @@ public struct Match: Codable, Sendable {
     let paths: [String]?             // exact paths with ~ and * (single segment glob)
     let dirName: String?             // folder name anywhere, e.g. "node_modules" (project rules only)
     let siblingMarker: String?       // file that must exist next to dirName, e.g. "package.json"
-    let extensions: [String]?        // for file rules
+    let extensions: [String]?        // matches files and folders under `paths`; for files only, put the extension in the glob (`~/Downloads/*.dmg`)
     let minAgeDays: Int?             // rule specific minimum, user threshold still applies on top
     let claimWholeFolder: Bool       // true = one candidate for the folder, stop descending
     let installedAppFolder: InstalledAppFolder?  // one literal rule per installed app under App Support or Caches
@@ -199,7 +199,6 @@ Never matched: `Local Storage`, `IndexedDB`, `WebStorage`, `Session Storage`, `F
 | telegram.media | `~/Library/Group Containers/*.ru.keepcoder.Telegram` | yellow | F | Telegram > Settings > Data and Storage > Storage Usage, verify |
 | mobileSync.backups | `~/Library/Application Support/MobileSync/Backup/*` | red | F | each backup with device name from `Info.plist`, delete via Finder or iMazing |
 | arduino.staging | `~/Library/Arduino15/staging` | green | Q | |
-| rpiImager.cache | `~/Library/Caches/Raspberry Pi/Imager` | green | Q | verify |
 | mail.downloads | `~/Library/Containers/com.apple.mail/Data/Library/Mail Downloads` | green | Q | |
 | logs.user | `~/Library/Logs/*` | green | Q | entries older than 30 days only |
 | crashReports | `~/Library/Logs/DiagnosticReports` | green | Q | |

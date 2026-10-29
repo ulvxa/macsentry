@@ -63,7 +63,9 @@ Rules: never stack glass on glass (no glass card inside a glass card), wrap sibl
 See their feature docs. Same filter bar and action bar components.
 
 ### Inspector (right side, toggled with Cmd Option I)
-- Name, full path (selectable, monospaced), kind
+- Name, full path (selectable, monospaced) as a path bar where each folder segment opens that folder in Finder, kind
+- Rows and inspector header show the owning app's icon (`AppIconCache`, by `appBundleID`) when the app is installed; orphans keep a generic symbol
+- Reveal in Finder selects existing items (packages as a whole) and falls back to the nearest existing ancestor; items in quarantine reveal their quarantine path
 - Size block: Logical, On disk, Will free (explanation popover for the difference)
 - Dates: Created, Modified, Last used
 - Rule: tier glyph and word, reason sentence, rule id in tertiary text
