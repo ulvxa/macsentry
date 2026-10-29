@@ -66,6 +66,7 @@ private struct FlaggedContent: View {
             }
         }
         .listStyle(.inset(alternatesRowBackgrounds: true))
+        .listItemTint(.monochrome)
         .onKeyPress(.space) {
             guard !model.focusedIDs.isEmpty else { return .ignored }
             model.toggleQuickLook()

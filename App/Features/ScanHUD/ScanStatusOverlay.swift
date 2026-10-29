@@ -143,7 +143,9 @@ private struct ResultToast: View {
     private var message: some View {
         switch toast.kind {
         case let .scanFinished(summary):
-            let found = "Found \(ByteFormat.string(summary.totalFreeable)) in \(CountFormat.items(summary.candidateCount))"
+            let found = summary.candidateCount == 0
+                ? "Nothing found above your thresholds"
+                : "Found \(ByteFormat.string(summary.totalFreeable)) in \(CountFormat.items(summary.candidateCount))"
             let unreadable = summary.unreadable.isEmpty ? "" : " · \(summary.unreadable.count.formatted()) unreadable"
             Text("\(found) · \(DurationFormat.string(summary.duration))\(unreadable)")
                 .monospacedDigit()

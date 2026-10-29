@@ -196,7 +196,7 @@ final class AppModel {
         if item == .quarantine {
             return quarantineTotals.map(\.inQuarantine).flatMap { $0 > 0 ? $0 : nil }
         }
-        return total(for: item).map(\.freeable)
+        return total(for: item).map(\.freeable).flatMap { $0 > 0 ? $0 : nil }
     }
 
     func refreshQuarantineTotals() async {

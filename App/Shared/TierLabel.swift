@@ -17,6 +17,7 @@ struct TierLabel: View {
     var body: some View {
         content
             .help(tier.meaning)
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel(tier.word)
     }
 
@@ -26,11 +27,10 @@ struct TierLabel: View {
         case .glyph:
             glyph
         case .full, .compact:
-            Label {
+            HStack(spacing: Space.xs) {
+                glyph
                 Text(tier.word)
                     .fontWeight(tier == .red ? .semibold : .regular)
-            } icon: {
-                glyph
             }
             .font(style == .full ? .callout : .caption)
         }
