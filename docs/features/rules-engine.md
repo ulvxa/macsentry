@@ -80,7 +80,9 @@ A rule is active if any of its `appBundleIDs` is installed, OR any of its `paths
 
 ## Old and Large Rule
 Built in, not JSON. Applies to files and packages anywhere under the user home not already claimed by another rule:
-- size `freeable >= thresholds.minSize` AND age by `thresholds.ageBasis >= thresholds.minAgeDays`
+- size `freeable >= thresholds.minSize` (default 100 MB) AND age by `thresholds.ageBasis >= thresholds.minAgeDays` (age = newest of Spotlight last used, modified, date added)
+- second rule `oldLarge.large`: `freeable >= thresholds.largeFileMinSize` (default 1 GB, `0` disables) regardless of age, red, review only. Core list queries exempt it from the min age filter
+- hidden folders (any `.`-prefixed component below home) are skipped by both rules
 - tier: red by default. Yellow for installer types `dmg, pkg, xip, iso, zip` in `~/Downloads`
 - category `oldLarge`
 - excludes `~/Pictures/*.photoslibrary`, `~/Music/Music`, anything under a git repo working tree (handled by graveyard), mail and messages stores

@@ -29,7 +29,7 @@ struct OldLargeRuleTests {
         let oldLarge = rule(home: fixture.root)
 
         func candidates(minSize: Int64) -> [URL] {
-            let thresholds = Thresholds(minAgeDays: 180, minSize: minSize, ageBasis: .modified)
+            let thresholds = Thresholds(minAgeDays: 180, minSize: minSize, ageBasis: .modified, largeFileMinSize: 0)
             return (files + [small]).compactMap { url in
                 let entry = Kit.entry(url)
                 let size = Kit.size(entry.logicalSize)
@@ -112,11 +112,12 @@ struct OldLargeRuleTests {
         )
         let oldLarge = rule(home: fixture.root)
         func thresholds(_ basis: AgeBasis) -> Thresholds {
-            Thresholds(minAgeDays: 180, minSize: 500_000_000, ageBasis: basis)
+            Thresholds(minAgeDays: 180, minSize: 500_000_000, ageBasis: basis, largeFileMinSize: 0)
         }
         #expect(evaluate(oldLarge, url, thresholds: thresholds(.created)) != nil)
         #expect(evaluate(oldLarge, url, thresholds: thresholds(.modified)) == nil)
-        #expect(evaluate(oldLarge, url, thresholds: thresholds(.lastUsed), lastUsed: Kit.daysAgo(200)) != nil)
+        // A recent modification counts as use, so an old Spotlight date cannot make a freshly edited file old.
+        #expect(evaluate(oldLarge, url, thresholds: thresholds(.lastUsed), lastUsed: Kit.daysAgo(200)) == nil)
         #expect(evaluate(oldLarge, url, thresholds: thresholds(.lastUsed), lastUsed: Kit.daysAgo(3)) == nil)
         #expect(evaluate(oldLarge, url, thresholds: thresholds(.lastUsed)) == nil)
     }
@@ -141,5 +142,48 @@ struct OldLargeRuleTests {
         #expect(candidate.action == .flagOnly)
         #expect(candidate.reason == RuleMatch.rootOwnedReason)
         #expect(candidate.cliCommand == nil)
+    }
+
+    @Test func `huge files are flagged whatever their age but not in hidden folders`() throws {
+        let fixture = try FixtureBuilder(name: "OldLargeHuge")
+        let recent = Kit.daysAgo(2)
+        let movie = try fixture.sparseFile("Downloads/film.mp4", logicalSize: 2 * Self.gigabyte, modified: recent)
+        let medium = try fixture.sparseFile("Documents/medium.bin", logicalSize: 300_000_000, modified: recent)
+        let hidden = try fixture.sparseFile(".cache/models/blob.bin", logicalSize: 2 * Self.gigabyte, modified: recent)
+        let oldLarge = rule(home: fixture.root)
+        let thresholds = Thresholds()
+
+        let match = try #require(evaluate(oldLarge, movie, thresholds: thresholds))
+        #expect(match.rule.id == "oldLarge.large")
+        #expect(match.rule.tier == .red)
+        #expect(match.minFreeableSize == thresholds.largeFileMinSize)
+        #expect(evaluate(oldLarge, medium, thresholds: thresholds) == nil)
+        #expect(evaluate(oldLarge, hidden, thresholds: thresholds) == nil)
+        let oldHidden = try fixture.sparseFile(".tool/old.bin", logicalSize: Self.gigabyte, modified: Kit.daysAgo(500))
+        #expect(evaluate(oldLarge, oldHidden, thresholds: thresholds) == nil)
+        #expect(evaluate(oldLarge, movie, thresholds: Thresholds(largeFileMinSize: 0)) == nil)
+        #expect(evaluate(oldLarge, movie, thresholds: Thresholds(largeFileMinSize: 5_000_000_000)) == nil)
+    }
+
+    @Test func `old and huge uses the age rule and 100 MB files qualify by default`() throws {
+        let fixture = try FixtureBuilder(name: "OldLargeBoth")
+        let old = Kit.daysAgo(400)
+        let huge = try fixture.sparseFile("Documents/old-huge.bin", logicalSize: 2 * Self.gigabyte, modified: old)
+        let medium = try fixture.sparseFile("Documents/old-medium.bin", logicalSize: 150_000_000, modified: old)
+        let oldLarge = rule(home: fixture.root)
+        #expect(evaluate(oldLarge, huge, thresholds: Thresholds())?.rule.id == "oldLarge")
+        #expect(evaluate(oldLarge, medium, thresholds: Thresholds())?.rule.id == "oldLarge")
+    }
+
+    @Test func `recently added files are not old even when their modified date is`() throws {
+        let fixture = try FixtureBuilder(name: "OldLargeAdded")
+        let url = try fixture.sparseFile("Documents/moved-in.bin", logicalSize: 200_000_000, modified: Kit.daysAgo(900))
+        let oldLarge = rule(home: fixture.root)
+        let thresholds = Thresholds(largeFileMinSize: 0)
+        let stale = Kit.entry(url, added: Kit.daysAgo(800))
+        let fresh = Kit.entry(url, added: Kit.daysAgo(5))
+        #expect(oldLarge.evaluate(stale, sizeInfo: Kit.size(200_000_000), thresholds: thresholds) != nil)
+        #expect(oldLarge.evaluate(fresh, sizeInfo: Kit.size(200_000_000), thresholds: thresholds) == nil)
+        #expect(OldLargeRule.activityDate(of: fresh) == Kit.daysAgo(5))
     }
 }

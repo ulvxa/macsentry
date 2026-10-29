@@ -54,6 +54,7 @@ public struct FileEntry: Sendable, Equatable {
     public let flags: UInt32
     public let created: Date?
     public let modified: Date?
+    public let added: Date?
     public let ownerUID: uid_t
 
     public init(
@@ -68,6 +69,7 @@ public struct FileEntry: Sendable, Equatable {
         flags: UInt32,
         created: Date?,
         modified: Date?,
+        added: Date? = nil,
         ownerUID: uid_t,
     ) {
         self.url = url
@@ -81,6 +83,7 @@ public struct FileEntry: Sendable, Equatable {
         self.flags = flags
         self.created = created
         self.modified = modified
+        self.added = added
         self.ownerUID = ownerUID
     }
 }
@@ -114,10 +117,20 @@ public struct Thresholds: Sendable, Equatable {
     public var minAgeDays: Int
     public var minSize: Int64
     public var ageBasis: AgeBasis
+    public var largeFileMinSize: Int64
 
-    public init(minAgeDays: Int = 180, minSize: Int64 = 500_000_000, ageBasis: AgeBasis = .lastUsed) {
+    public static let defaultMinSize: Int64 = 100_000_000
+    public static let defaultLargeFileMinSize: Int64 = 1_000_000_000
+
+    public init(
+        minAgeDays: Int = 180,
+        minSize: Int64 = Thresholds.defaultMinSize,
+        ageBasis: AgeBasis = .lastUsed,
+        largeFileMinSize: Int64 = Thresholds.defaultLargeFileMinSize,
+    ) {
         self.minAgeDays = minAgeDays
         self.minSize = minSize
         self.ageBasis = ageBasis
+        self.largeFileMinSize = largeFileMinSize
     }
 }

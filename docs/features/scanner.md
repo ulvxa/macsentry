@@ -79,7 +79,10 @@ Shown everywhere instead of Finder size. Rules:
 6. Global caveat banner when local APFS snapshots exist (`tmutil listlocalsnapshots /`): "Space may return after macOS thins local snapshots"
 
 ## Last Used
-- For each candidate only (not every file): `MDItemCreateWithURL` then `kMDItemLastUsedDate`, fallback `modified`
+- Spotlight may be off (`mdutil -s` says "Indexing disabled") or stale, so last used never depends on it. The walker reads `ATTR_CMN_ADDEDTIME` (date added, filesystem-level, free in `getattrlistbulk`) into `FileEntry.added`
+- Walk time activity date = max(`modified`, `added`) (`OldLargeRule.activityDate`). Old and Large uses it, so a file copied or moved in recently is not old
+- Post-walk, per candidate only: `MDItemCreateWithURL` then `kMDItemLastUsedDate`. Final `last_used_at` = max(Spotlight date, activity date, `modified`); a Spotlight date can only make a file newer
+- Reason wording follows the source: `oldLarge` says "not changed" (filesystem dates) and is rewritten to "not opened" only when Spotlight supplied a date
 - Folder last used = max of children `modified` (computed during walk) and the folder's own Spotlight date
 - Never rely on `st_atime`
 

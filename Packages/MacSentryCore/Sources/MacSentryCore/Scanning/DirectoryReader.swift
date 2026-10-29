@@ -15,6 +15,7 @@ struct RawEntry {
     let ownerUID: uid_t
     let created: Date?
     let modified: Date?
+    let added: Date?
     let finderFlags: UInt16
     let error: UInt32
 
@@ -38,7 +39,8 @@ final class DirectoryReader: @unchecked Sendable {
 
     private static let commonAttributes = UInt32(ATTR_CMN_RETURNED_ATTRS) | UInt32(ATTR_CMN_NAME) | UInt32(ATTR_CMN_DEVID)
         | UInt32(ATTR_CMN_OBJTYPE) | UInt32(ATTR_CMN_CRTIME) | UInt32(ATTR_CMN_MODTIME) | UInt32(ATTR_CMN_FNDRINFO)
-        | UInt32(ATTR_CMN_OWNERID) | UInt32(ATTR_CMN_FLAGS) | UInt32(ATTR_CMN_FILEID) | UInt32(ATTR_CMN_ERROR)
+        | UInt32(ATTR_CMN_OWNERID) | UInt32(ATTR_CMN_FLAGS) | UInt32(ATTR_CMN_FILEID) | UInt32(ATTR_CMN_ADDEDTIME)
+        | UInt32(ATTR_CMN_ERROR)
     private static let fileAttributes = UInt32(ATTR_FILE_LINKCOUNT) | UInt32(ATTR_FILE_ALLOCSIZE) | UInt32(ATTR_FILE_DATALENGTH)
     private static let extendedAttributes = UInt32(ATTR_CMNEXT_PRIVATESIZE)
     private static let options = UInt64(FSOPT_PACK_INVAL_ATTRS) | UInt64(FSOPT_ATTR_CMN_EXTENDED)
@@ -122,6 +124,7 @@ final class DirectoryReader: @unchecked Sendable {
         let owner = field.take(UInt32.self)
         let flags = field.take(UInt32.self)
         let inode = field.take(UInt64.self)
+        let added = field.take(timespec.self)
         let linkCount = field.take(UInt32.self)
         let allocated = field.take(Int64.self)
         let logical = field.take(Int64.self)
@@ -142,6 +145,7 @@ final class DirectoryReader: @unchecked Sendable {
             ownerUID: owner ?? 0,
             created: created.flatMap { date($0, valid: returned.commonattr & UInt32(ATTR_CMN_CRTIME) != 0) },
             modified: modified.flatMap { date($0, valid: returned.commonattr & UInt32(ATTR_CMN_MODTIME) != 0) },
+            added: added.flatMap { date($0, valid: returned.commonattr & UInt32(ATTR_CMN_ADDEDTIME) != 0) },
             finderFlags: finderFlags ?? 0,
             error: error,
         )

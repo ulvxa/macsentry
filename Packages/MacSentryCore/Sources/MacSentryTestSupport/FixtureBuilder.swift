@@ -26,12 +26,12 @@ public struct FixtureBuilder: Sendable {
     }
 
     @discardableResult
-    public func folder(_ relativePath: String, created: Date? = nil, modified: Date? = nil) throws -> URL {
+    public func folder(_ relativePath: String, created: Date? = nil, modified: Date? = nil, added: Date? = nil) throws -> URL {
         let target = try url(relativePath)
         try Self.fileSystem("createDirectory", target) {
             try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
         }
-        try setDates(of: target, created: created, modified: modified)
+        try setDates(of: target, created: created, modified: modified, added: added)
         return target
     }
 
@@ -42,6 +42,7 @@ public struct FixtureBuilder: Sendable {
         fill: UInt8 = 0x61,
         created: Date? = nil,
         modified: Date? = nil,
+        added: Date? = nil,
     ) throws -> URL {
         let target = try prepareParent(relativePath)
         let descriptor = try Self.openForWriting(target)
@@ -56,7 +57,7 @@ public struct FixtureBuilder: Sendable {
             }
             remaining -= Int64(count)
         }
-        try setDates(of: target, created: created, modified: modified)
+        try setDates(of: target, created: created, modified: modified, added: added)
         return target
     }
 
@@ -66,6 +67,7 @@ public struct FixtureBuilder: Sendable {
         logicalSize: Int64,
         created: Date? = nil,
         modified: Date? = nil,
+        added: Date? = nil,
     ) throws -> URL {
         let target = try prepareParent(relativePath)
         let descriptor = try Self.openForWriting(target)
@@ -73,7 +75,7 @@ public struct FixtureBuilder: Sendable {
         guard ftruncate(descriptor, off_t(logicalSize)) == 0 else {
             throw FixtureError.systemCall("ftruncate", path: target.path(percentEncoded: false), errno: errno)
         }
-        try setDates(of: target, created: created, modified: modified)
+        try setDates(of: target, created: created, modified: modified, added: added)
         return target
     }
 
@@ -104,7 +106,8 @@ public struct FixtureBuilder: Sendable {
         return target
     }
 
-    public func setDates(of target: URL, created: Date? = nil, modified: Date? = nil) throws {
+    /// Backdating a file also backdates its date added unless `added` says otherwise, so fixtures read as old on every axis.
+    public func setDates(of target: URL, created: Date? = nil, modified: Date? = nil, added: Date? = nil) throws {
         var attributes: [FileAttributeKey: Any] = [:]
         if let created {
             attributes[.creationDate] = created
@@ -115,6 +118,21 @@ public struct FixtureBuilder: Sendable {
         guard !attributes.isEmpty else { return }
         try Self.fileSystem("setAttributes", target) {
             try FileManager.default.setAttributes(attributes, ofItemAtPath: target.path(percentEncoded: false))
+        }
+        if let addedDate = added ?? [created, modified].compactMap(\.self).min() {
+            try setAddedDate(of: target, to: addedDate)
+        }
+    }
+
+    private func setAddedDate(of target: URL, to date: Date) throws {
+        var list = attrlist()
+        list.bitmapcount = u_short(ATTR_BIT_MAP_COUNT)
+        list.commonattr = attrgroup_t(ATTR_CMN_ADDEDTIME)
+        let seconds = date.timeIntervalSince1970
+        var time = timespec(tv_sec: Int(seconds.rounded(.down)), tv_nsec: 0)
+        let path = target.path(percentEncoded: false)
+        guard setattrlist(path, &list, &time, MemoryLayout<timespec>.size, 0) == 0 else {
+            throw FixtureError.systemCall("setattrlist", path: path, errno: errno)
         }
     }
 

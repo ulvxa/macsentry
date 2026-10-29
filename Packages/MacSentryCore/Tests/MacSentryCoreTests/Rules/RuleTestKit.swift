@@ -13,7 +13,7 @@ enum RuleTestKit {
         now.addingTimeInterval(-days * day)
     }
 
-    static func entry(_ url: URL, ownerUID: uid_t? = nil) -> FileEntry {
+    static func entry(_ url: URL, ownerUID: uid_t? = nil, added: Date? = nil) -> FileEntry {
         var info = stat()
         precondition(lstat(url.path(percentEncoded: false), &info) == 0, "missing fixture \(url.path(percentEncoded: false))")
         let kind: EntryKind = switch info.st_mode & S_IFMT {
@@ -33,6 +33,7 @@ enum RuleTestKit {
             flags: info.st_flags,
             created: Date(timeIntervalSince1970: TimeInterval(info.st_birthtimespec.tv_sec)),
             modified: Date(timeIntervalSince1970: TimeInterval(info.st_mtimespec.tv_sec)),
+            added: added,
             ownerUID: ownerUID ?? info.st_uid,
         )
     }
