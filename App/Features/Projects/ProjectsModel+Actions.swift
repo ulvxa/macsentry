@@ -4,7 +4,12 @@ import MacSentryCore
 extension ProjectsModel {
     func requestQuarantine() {
         guard quarantineDisabledReason == nil else { return }
-        confirmation = QuarantineConfirmation(candidates: checkedCandidates, isDryRun: app.environment.isDryRun, noun: "artifacts")
+        confirmation = QuarantineConfirmation(
+            candidates: checkedCandidates,
+            isDryRun: app.environment.isDryRun,
+            destination: app.quarantineFolderDisplay,
+            noun: "artifacts",
+        )
     }
 
     func quarantineChecked() async {

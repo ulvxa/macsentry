@@ -8,7 +8,11 @@ extension CandidateListModel {
 
     func requestQuarantine() {
         guard quarantineDisabledReason == nil else { return }
-        confirmation = QuarantineConfirmation(candidates: checkedCandidates, isDryRun: app.environment.isDryRun)
+        confirmation = QuarantineConfirmation(
+            candidates: checkedCandidates,
+            isDryRun: app.environment.isDryRun,
+            destination: app.quarantineFolderDisplay,
+        )
     }
 
     func confirm(_ confirmation: QuarantineConfirmation) async {

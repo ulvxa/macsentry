@@ -2,6 +2,10 @@ import Foundation
 import MacSentryCore
 
 extension AppModel {
+    var quarantineFolderDisplay: String {
+        UserPath.abbreviate(DefaultQuarantineService.quarantineRoot(home: environment.homeURL), homeURL: environment.homeURL)
+    }
+
     func quarantineBatches() async throws -> [QuarantineBatchSummary] {
         guard let services else { return [] }
         return try await services.quarantine.list()

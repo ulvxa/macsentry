@@ -136,6 +136,35 @@ struct CandidateStoreQueryTests {
     }
 
     @Test(arguments: StoreBackend.allCases)
+    func `action totals keep flag only rows out of reclaimable`(backend: StoreBackend) async throws {
+        var flaggedOrphan = candidate(8, "/Users/u/Library/LaunchAgents/a.plist", category: .orphan, tier: .yellow, rule: "o", freeable: 40)
+        flaggedOrphan.action = .flagOnly
+        var docker = candidate(9, "/Users/u/Docker.raw", category: .flagged, tier: .red, rule: "docker", freeable: 4000)
+        docker.action = .flagOnly
+        let orphan = candidate(10, "/Users/u/Library/Caches/gone", category: .orphan, tier: .yellow, rule: "o", freeable: 60)
+        let (store, _) = try makeStore(backend, candidates: candidateRows + [flaggedOrphan, docker, orphan])
+
+        let totals = try await store.actionTotals(session: 1)
+        #expect(totals.flagged == CategoryTotal(count: 2, freeable: 4040))
+        #expect(totals.reclaimable == CategoryTotal(count: 6, freeable: 15110))
+        #expect(totals.total(categories: [.orphan], actions: [.quarantine]) == CategoryTotal(count: 1, freeable: 60))
+        #expect(totals.total(categories: [.orphan]) == CategoryTotal(count: 2, freeable: 100))
+        #expect(try await store.actionTotals(session: 3) == .empty)
+
+        let flaggedRows = try await store.candidates(session: 1, filter: CandidateFilter(actions: [.flagOnly]))
+        #expect(ids(flaggedRows) == [9, 8])
+    }
+
+    @Test(arguments: StoreBackend.allCases)
+    func `filtered total counts and sums the matching rows`(backend: StoreBackend) async throws {
+        let (store, _) = try makeStore(backend)
+        let old = CandidateFilter(categories: [.oldLarge], minFreeable: 100, minAgeDays: 180, ageBasis: .modified)
+        #expect(try await store.total(session: 1, filter: old) == CategoryTotal(count: 1, freeable: 9000))
+        #expect(try await store.total(session: 1, filter: CandidateFilter()) == CategoryTotal(count: 5, freeable: 15050))
+        #expect(try await store.total(session: 3, filter: CandidateFilter()) == .zero)
+    }
+
+    @Test(arguments: StoreBackend.allCases)
     func `totals count found candidates per category`(backend: StoreBackend) async throws {
         let (store, _) = try makeStore(backend)
         let totals = try await store.totals(session: 1)

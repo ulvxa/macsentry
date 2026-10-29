@@ -204,6 +204,44 @@ struct CandidateListModelTests {
         #expect(harness.app.quarantineBlockReason(for: model.candidates) != nil)
     }
 
+    @Test func `changing only the age basis re queries the list`() async throws {
+        var opened = CandidateHarness.candidate(id: 1, name: "Opened", category: .oldLarge, ruleID: "oldLarge", ageDays: 400)
+        opened.lastUsedAt = Date().addingTimeInterval(-10 * 86400)
+        let harness = try await CandidateHarness(name: "ListAgeBasis", candidates: [opened])
+        let model = harness.list(.oldLarge)
+        #expect(await eventually { model.queryCount > 0 })
+        #expect(model.candidates.isEmpty)
+
+        harness.app.settings.ageBasis = .modified
+        model.thresholdsChanged(to: harness.app.settings.thresholds)
+        #expect(await eventually { model.candidates.compactMap(\.id) == [1] })
+        #expect(model.candidateFilter.ageBasis == .modified)
+    }
+
+    @Test func `the low confidence group checkbox is disabled but its rows stay checkable`() async throws {
+        var low = CandidateHarness.candidate(id: 1, name: "maybe-cli", category: .orphan, ruleID: "orphan.caches")
+        low.confidence = .low
+        var high = CandidateHarness.candidate(id: 2, name: "gone-app", category: .orphan, ruleID: "orphan.caches")
+        high.confidence = .high
+        let harness = try await CandidateHarness(name: "ListLowGroup", candidates: [low, high])
+        let model = harness.list(.orphans)
+        #expect(await eventually { model.candidates.count == 2 })
+        let sections = OrphanSections.rows(model.candidates)
+        let lowSection = try #require(sections.first { $0.name == Confidence.low.sectionTitle })
+        let highSection = try #require(sections.first { $0.name == Confidence.high.sectionTitle })
+
+        #expect(!model.canToggle(lowSection))
+        model.toggleCheck(lowSection)
+        #expect(model.checkedIDs.isEmpty)
+        let lowRow = try #require(lowSection.children.first)
+        #expect(model.canToggle(lowRow))
+        model.toggleCheck(lowRow)
+        #expect(model.checkedIDs == [1])
+        #expect(model.canToggle(highSection))
+        model.toggleCheck(highSection)
+        #expect(model.checkedIDs == [1, 2])
+    }
+
     @Test func `pending row selection from another screen focuses the row`() async throws {
         let target = CandidateHarness.candidate(id: 7, name: "Target", category: .oldLarge, ruleID: "oldLarge")
         let harness = try await CandidateHarness(name: "ListPending", candidates: [target])

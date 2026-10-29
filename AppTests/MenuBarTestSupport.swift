@@ -81,6 +81,20 @@ final class RecordingNotifier: LowSpaceNotifier {
     func openSystemSettings() async {}
 }
 
+struct SilentLowSpaceNotifier: LowSpaceNotifier {
+    func authorization() async -> NotificationAuthorization {
+        .denied
+    }
+
+    func requestAuthorization() async -> NotificationAuthorization {
+        .denied
+    }
+
+    func postLowSpace(freeBytes _: Int64, thresholdBytes _: Int64) async {}
+
+    func openSystemSettings() async {}
+}
+
 @MainActor
 final class FakeLoginItemService: LoginItemService {
     var status: LoginItemStatus = .notRegistered

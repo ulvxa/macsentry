@@ -117,13 +117,11 @@ final class OverviewModel {
         offendersTask = Task { [weak self] in
             var loaded: [SidebarItem: [OverviewOffender]] = [:]
             for item in Self.cardItems {
-                var found: [Candidate] = []
-                for category in item.categories {
-                    found += await (try? store.topOffenders(session: session, category: category, limit: Self.offenderLimit)) ?? []
-                }
+                guard let scope = item.scope else { continue }
+                let found = await (try? store.candidates(
+                    session: session, filter: scope, sort: .default, limit: Self.offenderLimit, offset: 0,
+                )) ?? []
                 loaded[item] = found
-                    .sorted { $0.freeableSize > $1.freeableSize }
-                    .prefix(Self.offenderLimit)
                     .compactMap { candidate in
                         candidate.id.map { OverviewOffender(id: $0, name: candidate.name, freeable: candidate.freeableSize) }
                     }

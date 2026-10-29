@@ -70,32 +70,6 @@ func treemapStoragePath(_ url: URL) -> String {
     return String(path.dropLast())
 }
 
-extension Tier {
-    var treemapSeverity: Int {
-        switch self {
-        case .green: 0
-        case .yellow: 1
-        case .red: 2
-        }
-    }
-
-    var treemapSymbol: String {
-        switch self {
-        case .green: "checkmark.circle"
-        case .yellow: "arrow.triangle.2.circlepath.circle"
-        case .red: "exclamationmark.octagon"
-        }
-    }
-
-    var treemapWord: String {
-        switch self {
-        case .green: "Safe"
-        case .yellow: "Rebuildable"
-        case .red: "Careful"
-        }
-    }
-}
-
 @Observable
 @MainActor
 final class TreemapModel {
@@ -309,7 +283,7 @@ final class TreemapModel {
             sizeText: ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
             sizeRank: 0,
             candidateCount: merged.reduce(0) { $0 + $1.candidateCount },
-            tier: merged.compactMap(\.tier).max { $0.treemapSeverity < $1.treemapSeverity },
+            tier: merged.compactMap(\.tier).max { $0.rank < $1.rank },
             candidateURL: nil,
             mergedCount: merged.count,
         )
@@ -332,7 +306,7 @@ final class TreemapModel {
             for candidate in candidates {
                 guard let index = owningTile(of: candidate.path, in: tilePaths) else { continue }
                 counts[index] += 1
-                if tiers[index].map({ $0.treemapSeverity < candidate.tier.treemapSeverity }) ?? true {
+                if tiers[index].map({ $0.rank < candidate.tier.rank }) ?? true {
                     tiers[index] = candidate.tier
                 }
                 if firstURLs[index] == nil {

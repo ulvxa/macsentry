@@ -75,7 +75,7 @@ struct QuarantineTrashRestoreTests {
         #expect(inode(entry.originalURL) == quarantinedInode)
         #expect(exists(entry.originalURL.appending(path: "payload.bin")))
         #expect(try harness.entry(entry.id)?.status == .restored)
-        #expect(try harness.candidateStatus(entry.candidateID) == .restored)
+        #expect(try harness.candidateStatus(entry.candidateID) == .found)
         #expect(!exists(batchFolder))
     }
 

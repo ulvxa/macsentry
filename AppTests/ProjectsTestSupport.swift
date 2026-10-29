@@ -19,13 +19,13 @@ struct ProjectsHarness {
     ) async throws {
         fixture = try FixtureBuilder(name: name)
         let settings = try SettingsStore(defaults: fixture.isolatedDefaults(), homeURL: fixture.root)
-        app = try AppModel(environment: fixture.environment(), settingsStore: settings)
+        app = try AppModel(environment: fixture.environment(), settingsStore: settings, notifier: SilentLowSpaceNotifier())
         store = InMemoryCandidateStore(
             sessions: sessions ?? [ScanSession(id: 1, startedAt: Date(), finishedAt: Date(), status: .finished, roots: [fixture.root])],
             candidates: artifacts,
             projects: projects,
         )
-        quarantine = TestQuarantineService()
+        quarantine = TestQuarantineService(candidates: store)
         let root = fixture.root
         await app.attach(AppServices(
             candidates: store,

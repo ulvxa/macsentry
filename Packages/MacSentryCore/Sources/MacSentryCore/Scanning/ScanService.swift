@@ -15,18 +15,21 @@ public struct DefaultScanService: ScanService {
     private let lastUsedResolver: any LastUsedResolver
     private let makeHandlers: @Sendable (ScanConfig) -> [any ScanEntryHandler]
     private let progressInterval: Duration
+    private let control: ScanControl?
 
     public init(
         database: Database,
         walker: (any ReportingFileWalker)? = nil,
         lastUsedResolver: any LastUsedResolver = SpotlightLastUsedResolver(),
         progressInterval: Duration = .milliseconds(100),
+        control: ScanControl? = nil,
         makeHandlers: @escaping @Sendable (ScanConfig) -> [any ScanEntryHandler] = { _ in [] },
     ) {
         self.database = database
         self.walker = walker
         self.lastUsedResolver = lastUsedResolver
         self.progressInterval = progressInterval
+        self.control = control
         self.makeHandlers = makeHandlers
     }
 
@@ -56,6 +59,7 @@ public struct DefaultScanService: ScanService {
         )
         let task = Task { await run.execute() }
         continuation.onTermination = { _ in task.cancel() }
+        control?.attachCancel { task.cancel() }
         return stream
     }
 }
@@ -276,9 +280,14 @@ private struct ScanRun: Sendable {
         return try await database.writer.write { db in
             var session = ScanSession(startedAt: Date(), status: .running, roots: roots)
             try session.insert(db)
+            // Keeps at most retainedSessions + 1 rows: the newest five plus the newest finished one the app may still show.
             try db.execute(
-                sql: "DELETE FROM scan_session WHERE id NOT IN (SELECT id FROM scan_session ORDER BY id DESC LIMIT ?)",
-                arguments: [DefaultScanService.retainedSessions],
+                sql: """
+                DELETE FROM scan_session
+                WHERE id NOT IN (SELECT id FROM scan_session ORDER BY id DESC LIMIT ?)
+                  AND id NOT IN (SELECT id FROM scan_session WHERE status = ? ORDER BY id DESC LIMIT 1)
+                """,
+                arguments: [DefaultScanService.retainedSessions, ScanStatus.finished],
             )
             guard let id = session.id else { throw ScanError.persistence("scan session has no id") }
             return id

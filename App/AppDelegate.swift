@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var menuBarEnabled: @MainActor () -> Bool = { true }
     var onWake: (@MainActor () async -> Void)?
     let notificationResponder = NotificationResponder()
+    var installNotificationDelegate: @MainActor (NotificationResponder) -> Void = { UNUserNotificationCenter.current().delegate = $0 }
     private var wakeTask: Task<Void, Never>?
 
     nonisolated static func shouldTerminateAfterLastWindowClosed(menuBarEnabled: Bool) -> Bool {
@@ -13,9 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_: Notification) {
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
-            UNUserNotificationCenter.current().delegate = notificationResponder
-        }
+        installNotificationDelegate(notificationResponder)
         wakeTask = Task { [weak self] in
             for await _ in NSWorkspace.shared.notificationCenter.notifications(named: NSWorkspace.didWakeNotification) {
                 await self?.onWake?()

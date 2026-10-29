@@ -162,6 +162,11 @@ private struct MenuBarButtons: View {
                     .buttonStyle(.glass)
                     .buttonSizing(.flexible)
                 } else {
+                    if status == .cancelling {
+                        Text("Cancelling…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     Button {
                         Task { await scan() }
                     } label: {
@@ -169,7 +174,7 @@ private struct MenuBarButtons: View {
                     }
                     .buttonStyle(.glassProminent)
                     .buttonSizing(.flexible)
-                    .disabled(status == .unavailable || menuBar.startScan == nil)
+                    .disabled(status == .unavailable || status == .cancelling || menuBar.startScan == nil)
                 }
                 HStack(spacing: 8) {
                     Button("Open MacSentry") { openMain(selecting: nil) }

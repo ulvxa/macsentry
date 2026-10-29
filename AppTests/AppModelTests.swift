@@ -21,7 +21,7 @@ struct AppModelTests {
             ],
             realHomeURL: fixture.root,
         )
-        let model = AppModel(environment: environment)
+        let model = AppModel(environment: environment, notifier: SilentLowSpaceNotifier())
         await model.openDatabase()
         #expect(model.database?.fileURL == databaseURL)
         #expect(model.alert == nil)

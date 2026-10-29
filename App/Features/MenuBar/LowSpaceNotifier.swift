@@ -73,20 +73,6 @@ struct SystemLowSpaceNotifier: LowSpaceNotifier {
     }
 }
 
-struct SilentLowSpaceNotifier: LowSpaceNotifier {
-    func authorization() async -> NotificationAuthorization {
-        .denied
-    }
-
-    func requestAuthorization() async -> NotificationAuthorization {
-        .denied
-    }
-
-    func postLowSpace(freeBytes _: Int64, thresholdBytes _: Int64) async {}
-
-    func openSystemSettings() async {}
-}
-
 @MainActor
 final class NotificationResponder: NSObject, UNUserNotificationCenterDelegate {
     var onReview: (@MainActor () -> Void)?
