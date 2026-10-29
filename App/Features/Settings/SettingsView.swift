@@ -12,8 +12,20 @@ struct SettingsView: View {
             Tab("Thresholds", systemImage: "slider.horizontal.3") {
                 ThresholdsSettingsView()
             }
+            Tab("Profiles", systemImage: "shippingbox") {
+                ProfilesSettingsView()
+            }
             Tab("Never Touch", systemImage: "hand.raised") {
                 NeverTouchSettingsView()
+            }
+            Tab("Projects", systemImage: "folder.badge.gearshape") {
+                ProjectsSettingsView()
+            }
+            Tab("Duplicates", systemImage: "doc.on.doc") {
+                DuplicatesSettingsView()
+            }
+            Tab("Notifications", systemImage: "bell") {
+                NotificationsSettingsView()
             }
             Tab("Appearance", systemImage: "circle.lefthalf.filled") {
                 AppearanceSettingsView()

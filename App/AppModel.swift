@@ -15,6 +15,7 @@ final class AppModel {
     let environment: AppEnvironment
     let settings: SettingsModel
     let permissions: any PermissionService
+    let menuBar: MenuBarModel
     var selection: SidebarItem? = .overview
     var alert: AppAlert?
     var isOnboardingPresented = false
@@ -34,6 +35,7 @@ final class AppModel {
         self.permissions = permissions ?? SystemPermissionService(homeURL: environment.homeURL) { url in
             Task { @MainActor in NSWorkspace.shared.open(url) }
         }
+        menuBar = MenuBarModel(settings: settings)
         refreshPermissions()
     }
 
@@ -65,6 +67,7 @@ final class AppModel {
             }.value
             database = opened
             await attachProtection(to: opened)
+            await menuBar.attach(database: opened, environment: environment, protection: protection)
             if let backup = opened.corruptBackupURL {
                 alert = AppAlert(
                     title: "Database Was Reset",
