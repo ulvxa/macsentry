@@ -55,23 +55,34 @@ struct DuplicateFinderTests {
         #expect(events.contains(.hashing(done: 3, total: 3, bytes: 3 * Self.twentyMB)))
     }
 
-    @Test func `a clone pair is grouped but reclaimable is near zero`() async throws {
+    @Test func `a clone pair frees nothing so it is not offered`() async throws {
         let fixture = try FixtureBuilder(name: "DupClone")
         let original = try fixture.file("Movies/clip.mov", size: Self.twentyMB, created: Support.date(1))
         let clone = try fixture.clone("Desktop/clip copy.mov", of: original)
         let index = try Support.index(fixture, [original, clone])
 
         let events = try await Support.collect(DefaultDuplicateFinder().find(sizeIndex: index, options: Support.options(fixture)))
+
+        #expect(Support.groups(events).isEmpty)
+        #expect(Support.summary(events)?.groupCount == 0)
+    }
+
+    @Test func `clones are dropped from a group that also has a real copy`() async throws {
+        let fixture = try FixtureBuilder(name: "DupCloneAndCopy")
+        let original = try fixture.file("Movies/clip.mov", size: Self.twentyMB, created: Support.date(1))
+        let clone = try fixture.clone("Desktop/clip copy.mov", of: original)
+        let copy = try fixture.file("Documents/clip.mov", size: Self.twentyMB, created: Support.date(2))
+        let index = try Support.index(fixture, [original, clone, copy])
+
+        let events = try await Support.collect(DefaultDuplicateFinder().find(sizeIndex: index, options: Support.options(fixture)))
         let groups = Support.groups(events)
 
         try #require(groups.count == 1)
         let (group, members) = groups[0]
+        #expect(members.map(\.url) == [copy])
         #expect(group.memberCount == 2)
-        #expect(group.reclaimableSize * 20 < group.fileSize)
-        #expect(group.isSpaceEfficient)
-        #expect(members.count == 1)
-        #expect(members.first?.freeableSize ?? .max < Self.twentyMB / 20)
-        #expect(members.first?.reason.contains("Shares its storage") == true)
+        #expect(group.reclaimableSize > 0)
+        #expect(group.reclaimableSize == members.reduce(0) { $0 + $1.freeableSize })
     }
 
     @Test func `hard links to the same inode are not duplicates`() async throws {

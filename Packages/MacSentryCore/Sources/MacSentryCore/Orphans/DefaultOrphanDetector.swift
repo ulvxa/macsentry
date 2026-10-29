@@ -15,6 +15,7 @@ public struct DefaultOrphanDetector: OrphanDetector {
     private let applicationURL: ApplicationLookup
     private let isClaimedByRule: RuleClaim
     private let folderSize: FolderSize
+    private let now: @Sendable () -> Date
 
     public init(
         sessionID: Int64,
@@ -24,6 +25,7 @@ public struct DefaultOrphanDetector: OrphanDetector {
         applicationURL: @escaping ApplicationLookup,
         isClaimedByRule: @escaping RuleClaim,
         folderSize: @escaping FolderSize,
+        now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.sessionID = sessionID
         self.allowlist = allowlist
@@ -32,6 +34,7 @@ public struct DefaultOrphanDetector: OrphanDetector {
         self.applicationURL = applicationURL
         self.isClaimedByRule = isClaimedByRule
         self.folderSize = folderSize
+        self.now = now
     }
 
     public init(
@@ -56,13 +59,19 @@ public struct DefaultOrphanDetector: OrphanDetector {
 
     public func findings(inventory: [InstalledApp], library: URL) async throws -> [OrphanFinding] {
         let helperIDs = helperBundleIDs.union(AppHelperIdentifiers.collect(from: inventory))
-        let matcher = OrphanMatcher(apps: inventory, extraIDs: helperIDs, allowlist: allowlist)
+        let matcher = OrphanMatcher(
+            apps: inventory,
+            extraIDs: helperIDs,
+            allowlist: allowlist,
+            appleTokens: AppleAppIdentifiers.collect(from: inventory),
+        )
         var results: [OrphanFinding] = []
         for location in OrphanLocation.allCases {
             try Task.checkCancellation()
             let items = Self.children(of: library.appending(path: location.folderName, directoryHint: .isDirectory))
             let siblings = items.map(\.name)
-            for item in items where Self.accepts(item, in: location) {
+            let names = Set(siblings)
+            for item in items where Self.accepts(item, in: location) && !UserDataMarkers.isSidecar(item.name, among: names) {
                 try Task.checkCancellation()
                 results += try await evaluate(item, location: location, siblings: siblings, matcher: matcher)
             }
@@ -85,12 +94,12 @@ public struct DefaultOrphanDetector: OrphanDetector {
         }
         if location.checksVersionFolders,
            let older = matcher.olderVersion(name: item.name, parent: nil, siblings: siblings) {
-            return await [olderVersionFinding(item, location: location, older: older)]
+            return await olderVersionFinding(item, location: location, older: older).map { [$0] } ?? []
         }
         if isOwned(identity, matcher: matcher) {
             return try await olderVersions(inside: item, location: location, matcher: matcher)
         }
-        return await [orphanFinding(item, location: location, identity: identity, matcher: matcher)]
+        return await orphanFinding(item, location: location, identity: identity, matcher: matcher).map { [$0] } ?? []
     }
 
     private func isEligible(_ url: URL) -> Bool {
@@ -119,29 +128,34 @@ public struct DefaultOrphanDetector: OrphanDetector {
         for child in children where child.isDirectory && !child.isPackage {
             try Task.checkCancellation()
             guard let older = matcher.olderVersion(name: child.name, parent: item.name, siblings: siblings),
-                  isEligible(child.url)
+                  isEligible(child.url),
+                  let finding = await olderVersionFinding(child, location: location, older: older)
             else { continue }
-            await results.append(olderVersionFinding(child, location: location, older: older))
+            results.append(finding)
         }
         return results
     }
 
-    private func olderVersionFinding(_ item: LibraryItem, location: OrphanLocation, older: OlderVersion) async -> OrphanFinding {
+    private func olderVersionFinding(_ item: LibraryItem, location: OrphanLocation, older: OlderVersion) async -> OrphanFinding? {
+        let userData = Self.inspectUserData(item, location: location)
+        guard !userData.isInUse(now: now()) else { return nil }
         let current = "\(older.app.name) \(older.currentVersion) is installed."
+        let notes = ["This folder is for \(older.product) \(older.folderVersion).", current] + [userData.note].compactMap(\.self)
         let explanation = OrphanExplanation(
             kind: .olderVersion(product: older.product, folderVersion: older.folderVersion, currentVersion: older.currentVersion),
             identity: item.name,
             guessedAppName: older.app.name,
             failedChecks: [],
-            notes: ["This folder is for \(older.product) \(older.folderVersion).", current],
+            notes: notes,
         )
         var candidate = await makeCandidate(
             item,
             location: location,
             ruleID: "orphan.oldVersion",
-            reason: "\(Self.olderVersionReason). \(current)",
-            confidence: .medium,
+            reason: ([Self.olderVersionReason + ". " + current] + [userData.note].compactMap(\.self)).joined(separator: " "),
+            confidence: userData.isUserData ? .low : .medium,
         )
+        Self.apply(userData, to: &candidate)
         candidate.appBundleID = older.app.bundleID
         return OrphanFinding(candidate: candidate, location: location, explanation: explanation)
     }
@@ -151,7 +165,9 @@ public struct DefaultOrphanDetector: OrphanDetector {
         location: OrphanLocation,
         identity: Identity,
         matcher: OrphanMatcher,
-    ) async -> OrphanFinding {
+    ) async -> OrphanFinding? {
+        let userData = Self.inspectUserData(item, location: location)
+        guard !userData.isInUse(now: now()) else { return nil }
         let checks = OrphanCheck.allCases.filter { $0 != .launchServices || OrphanMatcher.isReverseDNS(identity.value) }
         var confidence = matcher.confidence(for: identity.value)
         var notes: [String] = []
@@ -161,16 +177,10 @@ public struct DefaultOrphanDetector: OrphanDetector {
                 ? "The container metadata could not be read, so the owner is a guess from the folder name."
                 : "The plist could not be read, so the owner is a guess from the file name.")
         }
-        switch confidence {
-        case .high:
-            notes.append("No installed app comes from the same vendor.")
-        case .medium:
-            let vendor = matcher.sharedVendor(for: identity.value) ?? identity.value
-            notes.append("Another app from the same vendor (\(vendor)) is installed, so it may still be in use.")
-        case .low where !identity.unreadable:
-            notes.append("Plain name with no matching app, it could belong to a command line tool.")
-        case .low:
-            break
+        notes += [Self.confidenceNote(confidence, identity: identity, matcher: matcher)].compactMap(\.self)
+        if let note = userData.note {
+            confidence = .low
+            notes.append(note)
         }
 
         if location == .launchAgents {
@@ -188,6 +198,7 @@ public struct DefaultOrphanDetector: OrphanDetector {
             + checks.map(\.failureDescription).joined(separator: ", ")
             + ". " + notes.joined(separator: " ")
         var candidate = await makeCandidate(item, location: location, ruleID: location.ruleID, reason: reason, confidence: confidence)
+        Self.apply(userData, to: &candidate)
         candidate.appBundleID = OrphanMatcher.isReverseDNS(identity.value) ? identity.value : nil
         if location == .launchAgents {
             candidate.cliCommand = "launchctl bootout gui/$(id -u) \(Self.shellQuoted(item.url.path(percentEncoded: false)))"

@@ -17,6 +17,7 @@ public actor DefaultQuarantineService: QuarantineService {
     let trasher: any Trasher
     let timeZone: TimeZone
     let now: @Sendable () -> Date
+    let runningAppURL: URL
     let logger = Logger(subsystem: "com.macsentry.core", category: "Quarantine")
     var activeBatchIDs: Set<Int64> = []
 
@@ -30,6 +31,7 @@ public actor DefaultQuarantineService: QuarantineService {
         trasher: any Trasher = SystemTrasher(),
         timeZone: TimeZone = .current,
         now: @escaping @Sendable () -> Date = { Date() },
+        runningAppURL: URL = Bundle.main.bundleURL,
     ) {
         self.database = database
         self.quarantineRoot = URL(filePath: quarantineRoot.storagePath, directoryHint: .isDirectory)
@@ -40,6 +42,7 @@ public actor DefaultQuarantineService: QuarantineService {
         self.trasher = trasher
         self.timeZone = timeZone
         self.now = now
+        self.runningAppURL = runningAppURL.resolvingSymlinksInPath()
     }
 
     public init(
@@ -49,6 +52,7 @@ public actor DefaultQuarantineService: QuarantineService {
         appInventory: any AppInventory,
         sizeCalculator: any SizeCalculator,
         trasher: any Trasher = SystemTrasher(),
+        runningAppURL: URL = Bundle.main.bundleURL,
     ) {
         self.init(
             database: database,
@@ -58,6 +62,7 @@ public actor DefaultQuarantineService: QuarantineService {
             appInventory: appInventory,
             sizeCalculator: sizeCalculator,
             trasher: trasher,
+            runningAppURL: runningAppURL,
         )
     }
 
@@ -112,6 +117,10 @@ public actor DefaultQuarantineService: QuarantineService {
     ) async throws(MoveFailure) -> QuarantineEntry {
         let source = candidate.url
         guard candidate.action == .quarantine else { throw .protected }
+        let resolved = source.resolvingSymlinksInPath()
+        if Self.isInside(resolved, runningAppURL) || Self.isInside(runningAppURL, resolved) {
+            throw .appRunning
+        }
         let info = try preflight(candidate)
         try await verifyUnchanged(candidate, info: info)
         if let bundleID = candidate.appBundleID, appInventory.isRunning(bundleID: bundleID) {

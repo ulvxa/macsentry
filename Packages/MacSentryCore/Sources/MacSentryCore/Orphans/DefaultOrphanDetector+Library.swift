@@ -69,6 +69,42 @@ extension DefaultOrphanDetector {
         return notes
     }
 
+    static func confidenceNote(_ confidence: Confidence, identity: Identity, matcher: OrphanMatcher) -> String? {
+        switch confidence {
+        case .high:
+            return "No installed app comes from the same vendor."
+        case .medium:
+            if let vendor = matcher.sharedVendor(for: identity.value) {
+                return "Another app from the same vendor (\(vendor)) is installed, so it may still be in use."
+            }
+            let app = matcher.sharedAppleApp(for: identity.value) ?? identity.value
+            return "Its name matches \(app), which comes with macOS, so it may still be in use."
+        case .low:
+            return identity.unreadable ? nil : "Plain name with no matching app, it could belong to a command line tool."
+        }
+    }
+
+    static func inspectUserData(_ item: LibraryItem, location: OrphanLocation) -> UserDataReport {
+        UserDataMarkers.inspect(
+            item.url,
+            isDirectory: item.isDirectory,
+            modified: item.modified,
+            databasesAreUserData: location.databasesAreUserData,
+        )
+    }
+
+    static func apply(_ userData: UserDataReport, to candidate: inout Candidate) {
+        if userData.isUserData {
+            candidate.tier = .red
+        }
+        for sidecar in userData.sidecars {
+            let values = try? sidecar.resourceValues(forKeys: [.fileSizeKey, .totalFileAllocatedSizeKey])
+            // allocatedSize stays the main file's own size because quarantine compares it against that file before moving.
+            candidate.logicalSize += Int64(values?.fileSize ?? 0)
+            candidate.freeableSize += Int64(values?.totalFileAllocatedSize ?? 0)
+        }
+    }
+
     static func shellQuoted(_ value: String) -> String {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }

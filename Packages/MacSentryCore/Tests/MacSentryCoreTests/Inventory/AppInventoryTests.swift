@@ -49,13 +49,16 @@ struct AppInventoryTests {
         #expect(await inventory.installedApps().isEmpty)
     }
 
-    @Test func `standard roots resolve user applications against injected home`() {
+    @Test func `standard roots resolve user applications against injected home and include Apple apps`() {
         let home = URL(filePath: "/Users/tester", directoryHint: .isDirectory)
         let inventory = SystemAppInventory.standard(homeURL: home)
         #expect(inventory.appRoots.map { $0.path(percentEncoded: false) } == [
             "/Applications/",
             "/Applications/Utilities/",
             "/Users/tester/Applications/",
+            "/System/Applications/",
+            "/System/Applications/Utilities/",
+            "/System/Library/CoreServices/",
         ])
         #expect(inventory.editorRoots.map { $0.path(percentEncoded: false) } == ["/Applications/Unity/Hub/Editor/"])
     }

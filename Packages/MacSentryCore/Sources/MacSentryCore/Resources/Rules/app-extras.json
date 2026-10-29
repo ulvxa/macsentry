@@ -35,7 +35,7 @@
     ],
     "requiresAppQuit": true,
     "reason": "Downloaded extension packages. Antigravity downloads them again when needed.",
-    "verify": true
+    "verify": false
   },
   {
     "id": "vscode.oldExt",
@@ -169,7 +169,7 @@
     ],
     "requiresAppQuit": false,
     "reason": "Telegram media cache. Clear it in Telegram > Settings > Data and Storage > Storage Usage.",
-    "verify": true
+    "verify": false
   },
   {
     "id": "mobileSync.backups",
@@ -208,25 +208,6 @@
     "verify": false
   },
   {
-    "id": "rpiImager.cache",
-    "group": "Raspberry Pi Imager",
-    "category": "appCache",
-    "tier": "green",
-    "action": "quarantine",
-    "match": {
-      "paths": [
-        "~/Library/Caches/Raspberry Pi/Imager"
-      ],
-      "claimWholeFolder": true
-    },
-    "appBundleIDs": [
-      "org.raspberrypi.imagingutility"
-    ],
-    "requiresAppQuit": true,
-    "reason": "Cached OS images. Raspberry Pi Imager downloads them again when needed.",
-    "verify": true
-  },
-  {
     "id": "mail.downloads",
     "group": "Mail",
     "category": "appCache",
@@ -254,6 +235,15 @@
     "match": {
       "paths": [
         "~/Library/Logs/*"
+      ],
+      "extensions": [
+        "log",
+        "txt",
+        "ips",
+        "crash",
+        "diag",
+        "spin",
+        "hang"
       ],
       "minAgeDays": 30,
       "claimWholeFolder": true

@@ -87,15 +87,18 @@ public struct DefaultDuplicateFinder: DuplicateFinder {
         options: DuplicateOptions,
     ) -> (group: DuplicateGroup, members: [Candidate])? {
         guard let keeper = DuplicateKeeper.preferred(among: entries, homeURL: options.homeURL) else { return nil }
-        let members = entries
-            .filter { $0.inode != keeper.inode || $0.device != keeper.device }
+        let copies = entries.filter { $0.inode != keeper.inode || $0.device != keeper.device }
+        // A full APFS clone shares every block with the keeper, so moving it frees nothing.
+        let members = copies
+            .filter { DuplicateKeeper.freeableSize(of: $0) > 0 }
             .sorted { $0.url.path(percentEncoded: false) < $1.url.path(percentEncoded: false) }
             .map { DuplicateKeeper.candidate(for: $0, keeper: keeper.url, sessionID: options.sessionID, groupID: nil) }
+        guard !members.isEmpty else { return nil }
         let group = DuplicateGroup(
             sessionID: options.sessionID,
             contentHash: hash,
             fileSize: keeper.logicalSize,
-            memberCount: entries.count,
+            memberCount: entries.count - (copies.count - members.count),
             reclaimableSize: members.reduce(0) { $0 + $1.freeableSize },
             keeperURL: keeper.url,
         )

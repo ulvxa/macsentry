@@ -22,6 +22,7 @@ final class DuplicateScanHandler: ScanEntryHandler {
         control: ScanControl,
         policy: any ProtectionPolicy,
         gate: CandidateGate,
+        isInsideProject: @escaping @Sendable (URL) -> Bool = { _ in false },
     ) {
         self.roots = roots
         rootPrefixes = roots.map { $0.storagePath.hasSuffix("/") ? $0.storagePath : $0.storagePath + "/" }
@@ -30,7 +31,7 @@ final class DuplicateScanHandler: ScanEntryHandler {
         self.finder = finder
         self.control = control
         self.gate = gate
-        index = Mutex(SizeIndex(roots: roots, minSize: minSize) { policy.check($0) != .allowed })
+        index = Mutex(SizeIndex(roots: roots, minSize: minSize) { isInsideProject($0) || policy.check($0) != .allowed })
     }
 
     func visit(_ entry: FileEntry, context _: ScanContext) async -> HandlerDecision {

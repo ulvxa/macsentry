@@ -26,6 +26,7 @@ public struct DefaultProtectionPolicy: ProtectionPolicy {
         "~/Library/Safari, ~/Library/Calendars, ~/Library/Application Support/MobileSync/Backup, ~/.Trash",
         "~/Library/Preferences/*.plist of installed apps",
         "~/.ssh, ~/.gnupg, ~/.aws, ~/.config/gcloud, ~/.kube, ~/.docker/config.json, dotfiles in ~",
+        "Private keys anywhere in your home folder: id_rsa*, id_ed25519*, id_ecdsa*, *.pem, *.p12, *.key",
         "~/Library/Application Support/Ledger Live and anything named *wallet* under Application Support",
         "Every .git folder and source files inside git working trees (build artifacts excepted)",
         "*.photoslibrary, ~/Pictures/Photos Library.photoslibrary, ~/Music/Music",
@@ -78,6 +79,8 @@ public struct DefaultProtectionPolicy: ProtectionPolicy {
     ].map { (path: NormalizedPath(absolutePath: $0.0), itself: $0.1, child: $0.2) }
     private static let temporaryRoots = ["/private/var/folders", "/private/tmp"].map(NormalizedPath.init(absolutePath:))
     private static let libraryExtensions: Set = ["photoslibrary", "photolibrary", "musiclibrary"]
+    private static let keyPrefixes = ["id_rsa", "id_ed25519", "id_ecdsa"]
+    private static let keyExtensions: Set = ["pem", "p12", "key"]
 
     private struct Root {
         let path: NormalizedPath
@@ -221,7 +224,14 @@ public struct DefaultProtectionPolicy: ProtectionPolicy {
         if path.folded.contains(where: { Self.libraryExtensions.contains(($0 as NSString).pathExtension) }) {
             return "Photos or Music library"
         }
+        if path.isInside(home), path.folded.dropFirst(home.count).contains(where: Self.isPrivateKeyName) {
+            return "Private key"
+        }
         return nil
+    }
+
+    private static func isPrivateKeyName(_ name: String) -> Bool {
+        keyPrefixes.contains { name.hasPrefix($0) } || keyExtensions.contains((name as NSString).pathExtension)
     }
 
     private func gitDenial(for path: NormalizedPath) -> String? {

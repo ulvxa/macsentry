@@ -12,19 +12,23 @@ struct OrphanMatcher {
     private let knownIDs: Set<String>
     private let knownVendors: Set<String>
     private let knownNames: Set<String>
+    private let appleNames: Set<String>
     private let systemNames: Set<String>
+    private let appleTokens: [String: String]
 
-    init(apps: [InstalledApp], extraIDs: Set<String>, allowlist: SystemAllowlist) {
+    init(apps: [InstalledApp], extraIDs: Set<String>, allowlist: SystemAllowlist, appleTokens: [String: String] = [:]) {
         self.apps = apps
         let ids = Set((apps.map(\.bundleID) + extraIDs).map { $0.lowercased() }.filter { !$0.isEmpty })
         knownIDs = ids
         knownVendors = Set(ids.compactMap(Self.vendor))
-        knownNames = Set(
-            apps.flatMap { [$0.name, $0.url.deletingPathExtension().lastPathComponent] }
-                .map(Self.normalize)
-                .filter { !$0.isEmpty },
-        )
+        func names(_ apps: [InstalledApp]) -> Set<String> {
+            Set(apps.flatMap { [$0.name, $0.url.deletingPathExtension().lastPathComponent] }.map(Self.normalize).filter { !$0.isEmpty })
+        }
+        let apple = apps.filter(AppleAppIdentifiers.isApple)
+        knownNames = names(apps.filter { !AppleAppIdentifiers.isApple($0) })
+        appleNames = names(apple)
         systemNames = allowlist.activeNames(installedBundleIDs: apps.map(\.bundleID))
+        self.appleTokens = appleTokens
     }
 
     func isSystem(_ name: String) -> Bool {
@@ -44,7 +48,8 @@ struct OrphanMatcher {
     func matchesKnownName(_ identity: String) -> Bool {
         let normalized = Self.normalize(identity)
         guard !normalized.isEmpty else { return false }
-        return knownNames.contains { $0 == normalized || ($0.count >= 4 && normalized.contains($0)) }
+        // Apple app names are common words (Home, Mail, Dock), so a substring would hide real leftovers like docker.
+        return appleNames.contains(normalized) || knownNames.contains { $0 == normalized || ($0.count >= 4 && normalized.contains($0)) }
     }
 
     func isInsideInstalledApp(_ url: URL) -> Bool {
@@ -60,7 +65,13 @@ struct OrphanMatcher {
 
     func confidence(for identity: String) -> Confidence {
         guard let vendor = Self.vendor(identity.lowercased()) else { return .low }
-        return knownVendors.contains(vendor) ? .medium : .high
+        return knownVendors.contains(vendor) || sharedAppleApp(for: identity) != nil ? .medium : .high
+    }
+
+    func sharedAppleApp(for identity: String) -> String? {
+        guard Self.isReverseDNS(identity) else { return nil }
+        let parts = identity.lowercased().split(separator: ".")
+        return appleTokens[String(parts[1])]
     }
 
     func sharedVendor(for identity: String) -> String? {
@@ -180,7 +191,7 @@ enum AppHelperIdentifiers {
 
     static func collect(from apps: [InstalledApp]) -> Set<String> {
         var ids = Set<String>()
-        for app in apps {
+        for app in apps where !AppleAppIdentifiers.isApple(app) {
             for folder in helperFolders {
                 let directory = app.url.appending(path: folder, directoryHint: .isDirectory)
                 let children = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
@@ -200,5 +211,39 @@ enum AppHelperIdentifiers {
               let info = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
         else { return nil }
         return info["CFBundleIdentifier"] as? String
+    }
+}
+
+/// Apple apps keep identifiers from before Apple bought them (Shortcuts still uses is.workflow), so their Info.plist names them.
+enum AppleAppIdentifiers {
+    static func isApple(_ app: InstalledApp) -> Bool {
+        app.bundleID.lowercased().hasPrefix("com.apple.")
+    }
+
+    static func collect(from apps: [InstalledApp]) -> [String: String] {
+        var tokens: [String: String] = [:]
+        for app in apps where isApple(app) {
+            let own = app.bundleID.lowercased().split(separator: ".")
+            if own.count > 2 {
+                tokens[String(own[2])] = tokens[String(own[2])] ?? app.name
+            }
+            for identifier in foreignIdentifiers(of: app) {
+                let token = String(identifier.split(separator: ".")[1])
+                tokens[token] = tokens[token] ?? app.name
+            }
+        }
+        return tokens
+    }
+
+    private static func foreignIdentifiers(of app: InstalledApp) -> [String] {
+        guard let info = DefaultOrphanDetector.plist(at: app.url.appending(path: "Contents/Info.plist")) else { return [] }
+        var values = (info["CFBundleURLTypes"] as? [[String: Any]] ?? []).compactMap { $0["CFBundleURLName"] as? String }
+        values += info["NSUserActivityTypes"] as? [String] ?? []
+        values += (info["NSUbiquitousContainers"] as? [String: Any])?.keys.map(\.self) ?? []
+        return values.map { value in
+            let lower = value.lowercased()
+            return lower.hasPrefix("icloud.") ? String(lower.dropFirst(7)) : lower
+        }
+        .filter { OrphanMatcher.isReverseDNS($0) && !$0.hasPrefix("com.apple.") }
     }
 }

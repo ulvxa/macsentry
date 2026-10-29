@@ -141,6 +141,7 @@ struct QuarantineHarness {
         policy: (any ProtectionPolicy)? = nil,
         sizeCalculator: any SizeCalculator = WalkingSizeCalculator(),
         now: @escaping @Sendable () -> Date = { Date() },
+        runningAppURL: URL = Bundle.main.bundleURL,
     ) -> DefaultQuarantineService {
         DefaultQuarantineService(
             database: database ?? self.database,
@@ -152,6 +153,7 @@ struct QuarantineHarness {
             trasher: FixtureTrasher(trashDirectory: trashDirectory),
             timeZone: Self.timeZone,
             now: now,
+            runningAppURL: runningAppURL,
         )
     }
 

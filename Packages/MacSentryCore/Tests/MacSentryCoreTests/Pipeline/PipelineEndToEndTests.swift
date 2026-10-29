@@ -18,7 +18,7 @@ struct PipelineEndToEndTests {
         try fixture.file("Library/Caches/com.installed.app/blob", size: Harness.megabyte)
         try fixture.file("Documents/old-report.bin", size: 8 * Harness.megabyte, created: Harness.old, modified: Harness.old)
         _ = try PipelineGraveyardTests.makeRepo(fixture)
-        try fixture.file("Library/Application Support/com.fake.deletedapp/state.db", size: 64 * 1024)
+        try fixture.file("Library/Application Support/com.fake.deletedapp/state.bin", size: 64 * 1024)
         for index in 0 ..< 3 {
             try fixture.file("Downloads/dup-\(index).bin", size: 2 * Harness.megabyte, fill: 0x64)
         }

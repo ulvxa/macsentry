@@ -28,6 +28,8 @@ struct PathPattern: Sendable, Hashable {
 
     let segments: [Segment]
     let literalPrefixLength: Int
+    let endsWithGlob: Bool
+    let namesHiddenEntries: Bool
 
     var literalPath: String? {
         var components: [String] = []
@@ -41,9 +43,12 @@ struct PathPattern: Sendable, Hashable {
     init(_ pattern: String, home: String) {
         let expanded = Self.expand(pattern, home: home).lowercased()
         literalPrefixLength = expanded.firstIndex(of: "*").map { expanded.distance(from: expanded.startIndex, to: $0) } ?? expanded.count
-        segments = Self.components(of: expanded).map { name in
+        let names = Self.components(of: expanded)
+        segments = names.map { name in
             name.contains("*") ? .glob(name.components(separatedBy: "*")) : .literal(name)
         }
+        endsWithGlob = expanded.hasSuffix("*")
+        namesHiddenEntries = names.last?.hasPrefix(".") == true
     }
 
     func matches(_ components: [String]) -> Bool {

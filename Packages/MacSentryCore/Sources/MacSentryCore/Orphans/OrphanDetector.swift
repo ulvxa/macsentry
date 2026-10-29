@@ -60,6 +60,11 @@ public enum OrphanLocation: String, Sendable, CaseIterable {
         default: false
         }
     }
+
+    /// Caches and HTTPStorages keep throwaway Cache.db files; a fresh one still means the owner is alive.
+    var databasesAreUserData: Bool {
+        self != .caches && self != .httpStorages
+    }
 }
 
 public enum OrphanCheck: String, Sendable, CaseIterable {

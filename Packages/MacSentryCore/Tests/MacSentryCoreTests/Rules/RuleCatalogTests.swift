@@ -16,7 +16,7 @@ struct RuleCatalogTests {
         "adobe.mediaCache", "adobe.mediaCacheDB", "adobe.caches", "resolve.cacheClip", "blender.oldConfig",
         "appcache.generic", "appcache.library",
         "vscode.vsix", "vscode.oldExt", "chrome.cache", "spotify.cache", "spotify.offline", "steam.httpCache",
-        "steam.games", "telegram.media", "mobileSync.backups", "arduino.staging", "rpiImager.cache",
+        "steam.games", "telegram.media", "mobileSync.backups", "arduino.staging",
         "mail.downloads", "logs.user", "crashReports", "zoom.recordings",
     ]
 
@@ -37,7 +37,8 @@ struct RuleCatalogTests {
             #expect(!(rule.match.paths ?? []).contains { $0.contains("**") }, "\(rule.id)")
         }
         let verified = Set(catalog.rules.filter(\.verify).map(\.id))
-        #expect(verified == ["unity.cache", "ollama.models", "resolve.cacheClip", "antigravity.vsix", "telegram.media", "rpiImager.cache"])
+        #expect(verified == ["resolve.cacheClip"])
+        #expect(!ids.contains("rpiImager.cache"))
     }
 
     @Test func `bundled catalog round trips through JSON`() throws {
@@ -55,6 +56,7 @@ struct RuleCatalogTests {
         #expect(rules["zoom.recordings"]?.category == .oldLarge)
         #expect(rules["zoom.recordings"]?.match.applyUserThresholds == true)
         #expect(rules["logs.user"]?.match.minAgeDays == 30)
+        #expect(rules["logs.user"]?.match.extensions == ["log", "txt", "ips", "crash", "diag", "spin", "hang"])
         #expect(rules["appcache.library"]?.match.excludeBundleIDPrefixes == ["com.apple."])
         #expect(rules["android.oldStudioConfig"]?.match.versionPolicy == .olderThanInstalled)
         #expect(rules["vscode.oldExt"]?.match.versionPolicy == .olderSibling)

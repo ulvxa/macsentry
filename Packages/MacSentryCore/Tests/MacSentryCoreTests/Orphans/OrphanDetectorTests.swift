@@ -6,7 +6,7 @@ struct OrphanDetectorTests {
     @Test func `deleted app folder in Application Support is a high confidence orphan`() async throws {
         let home = try OrphanFixture()
         let folder = try home.folder("Application Support/com.fake.deletedapp")
-        try home.file("Application Support/com.fake.deletedapp/data.db", size: 10)
+        try home.file("Application Support/com.fake.deletedapp/data.bin", size: 10)
         let editor = try home.app("Editor", bundleID: "com.example.editor")
 
         let findings = try await home.detector().findings(inventory: [editor], library: home.library)

@@ -28,6 +28,7 @@ public struct GraveyardArtifactClaim: Sendable, Equatable {
 
 public final class GraveyardCollector: Sendable {
     public static let finishConcurrency = 4
+    static let nodeModules = "node_modules"
 
     public let searchRoots: [URL]
     public let excluded: [URL]
@@ -87,7 +88,7 @@ public final class GraveyardCollector: Sendable {
         let name = String(path[path.index(after: slash)...])
         let context = state.withLock { resolveContext(forParent: parentPath, in: &$0) }
 
-        guard context.inScope, !context.insideGit, name != ".git" else { return (.descend, nil) }
+        guard context.inScope, !context.insideGit, !context.insideNodeModules, name != ".git" else { return (.descend, nil) }
         if context.insideArtifact {
             return (.skipChildren, nil)
         }
@@ -143,6 +144,10 @@ public final class GraveyardCollector: Sendable {
                 }
                 return (.skipChildren, root.map { GraveyardArtifactClaim(match: match, projectRoot: $0) })
             }
+        }
+        // Installed packages carry their own package.json and dist, so nothing below node_modules is a project.
+        if name == Self.nodeModules {
+            return (.descend, nil)
         }
 
         let entries = probe.contents(of: entry.url)
@@ -216,8 +221,11 @@ public final class GraveyardCollector: Sendable {
         while cursor.count > rootPath.count {
             let current = String(cursor)
             guard let slash = cursor.lastIndex(of: "/") else { break }
-            if cursor[cursor.index(after: slash)...] == ".git" {
+            let component = cursor[cursor.index(after: slash)...]
+            if component == ".git" {
                 context.insideGit = true
+            } else if component == Self.nodeModules {
+                context.insideNodeModules = true
             }
             if state.artifactPaths.contains(current) {
                 context.insideArtifact = true
@@ -281,11 +289,30 @@ public final class GraveyardCollector: Sendable {
     }
 }
 
+public extension GraveyardCollector {
+    /// True for anything inside a folder recognised as a project root so far, with or without git.
+    func isInsideProject(_ url: URL) -> Bool {
+        let path = url.storagePath
+        return state.withLock { state in
+            guard !state.roots.isEmpty else { return false }
+            var cursor = Substring(path)
+            while let slash = cursor.lastIndex(of: "/"), slash != cursor.startIndex {
+                cursor = cursor[..<slash]
+                if state.roots[String(cursor)] != nil {
+                    return true
+                }
+            }
+            return false
+        }
+    }
+}
+
 private struct Context {
     var inScope: Bool
     var atSearchRoot = false
     var insideGit = false
     var insideArtifact = false
+    var insideNodeModules = false
     var owner: String?
 }
 
