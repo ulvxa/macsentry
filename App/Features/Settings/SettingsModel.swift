@@ -27,6 +27,30 @@ final class SettingsModel {
         didSet { store.menuBarEnabled = menuBarEnabled }
     }
 
+    var menuBarShowText: Bool {
+        didSet { store.menuBarShowText = menuBarShowText }
+    }
+
+    var disabledProfileGroups: Set<String> {
+        didSet { store.disabledProfileGroups = disabledProfileGroups.sorted() }
+    }
+
+    var projectRoots: [URL] {
+        didSet { store.projectRoots = projectRoots }
+    }
+
+    var projectIdleDays: Int {
+        didSet { store.projectIdleDays = projectIdleDays }
+    }
+
+    var duplicateRoots: [URL] {
+        didSet { store.duplicateRoots = duplicateRoots }
+    }
+
+    var duplicateMinSizeBytes: Int64 {
+        didSet { store.duplicateMinSizeBytes = duplicateMinSizeBytes }
+    }
+
     var launchAtLogin: Bool {
         didSet { store.launchAtLogin = launchAtLogin }
     }
@@ -46,10 +70,18 @@ final class SettingsModel {
         ageBasis = store.ageBasis
         scanRoots = store.scanRoots
         menuBarEnabled = store.menuBarEnabled
+        menuBarShowText = store.menuBarShowText
+        disabledProfileGroups = Set(store.disabledProfileGroups)
+        projectRoots = store.projectRoots
+        projectIdleDays = store.projectIdleDays
+        duplicateRoots = store.duplicateRoots
+        duplicateMinSizeBytes = store.duplicateMinSizeBytes
         launchAtLogin = store.launchAtLogin
         appearance = store.appearance
         limitedMode = store.limitedMode
     }
+
+    static let defaultDuplicateFolders = ["Downloads", "Desktop", "Documents", "Movies", "Pictures", "Music"]
 
     var thresholds: Thresholds {
         Thresholds(minAgeDays: minAgeDays, minSize: minSizeBytes, ageBasis: ageBasis)
@@ -62,6 +94,10 @@ final class SettingsModel {
 
     func removeScanRoots(_ urls: Set<URL>) {
         scanRoots.removeAll { urls.contains($0) }
+    }
+
+    func restoreDefaultDuplicateRoots() {
+        duplicateRoots = Self.defaultDuplicateFolders.map { store.homeURL.appending(path: $0, directoryHint: .isDirectory) }
     }
 
     func displayPath(_ url: URL) -> String {
