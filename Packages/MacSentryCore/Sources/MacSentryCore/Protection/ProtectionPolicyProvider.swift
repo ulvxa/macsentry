@@ -5,6 +5,7 @@ public final class ProtectionPolicyProvider: ProtectionPolicy {
     private struct State {
         var policy: DefaultProtectionPolicy
         var generation = 0
+        var isKnownArtifact: ArtifactPredicate
     }
 
     private let homeURL: URL
@@ -12,7 +13,6 @@ public final class ProtectionPolicyProvider: ProtectionPolicy {
     private let neverTouchStore: any NeverTouchStore
     private let ignoredPathStore: any IgnoredPathStore
     private let appInventory: (any AppInventory)?
-    private let isKnownArtifact: ArtifactPredicate
     private let state: Mutex<State>
 
     public init(
@@ -28,12 +28,10 @@ public final class ProtectionPolicyProvider: ProtectionPolicy {
         self.neverTouchStore = neverTouchStore
         self.ignoredPathStore = ignoredPathStore
         self.appInventory = appInventory
-        self.isKnownArtifact = isKnownArtifact
-        state = Mutex(State(policy: DefaultProtectionPolicy(
-            homeURL: homeURL,
-            databaseURL: databaseURL,
+        state = Mutex(State(
+            policy: DefaultProtectionPolicy(homeURL: homeURL, databaseURL: databaseURL, isKnownArtifact: isKnownArtifact),
             isKnownArtifact: isKnownArtifact,
-        )))
+        ))
     }
 
     public convenience init(
@@ -61,10 +59,14 @@ public final class ProtectionPolicyProvider: ProtectionPolicy {
         current.check(url)
     }
 
+    public func setKnownArtifact(_ predicate: @escaping ArtifactPredicate) {
+        state.withLock { $0.isKnownArtifact = predicate }
+    }
+
     public func refresh() async throws {
-        let generation = state.withLock { state in
+        let (generation, isKnownArtifact) = state.withLock { state in
             state.generation += 1
-            return state.generation
+            return (state.generation, state.isKnownArtifact)
         }
         let patterns = try await neverTouchStore.patterns().map(\.pattern)
         let ignored = try await ignoredPathStore.paths().map(\.url)

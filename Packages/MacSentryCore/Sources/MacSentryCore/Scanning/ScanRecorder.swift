@@ -7,7 +7,23 @@ final class ScanRecorder: Sendable {
         var pending: [Candidate] = []
         var keys: Set<String> = []
         var inserted: [Candidate] = []
+        var insertedIndex: [Int64: Int] = [:]
         var freeableByPath: [String: Int64] = [:]
+
+        mutating func record(_ written: [Candidate]) {
+            for candidate in written {
+                let path = candidate.url.storagePath
+                if let id = candidate.id, let index = insertedIndex[id] {
+                    inserted[index] = candidate
+                } else {
+                    if let id = candidate.id {
+                        insertedIndex[id] = inserted.count
+                    }
+                    inserted.append(candidate)
+                }
+                freeableByPath[path] = max(freeableByPath[path] ?? 0, candidate.freeableSize)
+            }
+        }
     }
 
     let database: Database
@@ -31,8 +47,13 @@ final class ScanRecorder: Sendable {
 
     func add(_ candidates: [Candidate]) async throws -> [Candidate] {
         var ready: [[Candidate]] = []
+        let persisted = candidates.filter { $0.id != nil }
         state.withLock { state in
-            for candidate in candidates {
+            for candidate in persisted {
+                state.keys.insert(candidate.url.storagePath + "\u{0}" + candidate.category.rawValue)
+            }
+            state.record(persisted)
+            for candidate in candidates where candidate.id == nil {
                 let path = candidate.url.storagePath
                 guard !WalkRules.isInside(path, anyOf: candidateExcluded),
                       state.keys.insert(path + "\u{0}" + candidate.category.rawValue).inserted
@@ -44,7 +65,7 @@ final class ScanRecorder: Sendable {
                 }
             }
         }
-        var written: [Candidate] = []
+        var written = persisted
         for batch in ready {
             written += try await insert(batch)
         }
@@ -67,13 +88,7 @@ final class ScanRecorder: Sendable {
                 return candidate
             }
         }
-        state.withLock { state in
-            state.inserted += written
-            for candidate in written {
-                let path = candidate.url.storagePath
-                state.freeableByPath[path] = max(state.freeableByPath[path] ?? 0, candidate.freeableSize)
-            }
-        }
+        state.withLock { $0.record(written) }
         return written
     }
 
