@@ -82,7 +82,7 @@ enum GraveyardTestSupport {
         ]
     }
 
-    static func gitClient(home: URL, timeout: Duration = ProcessGitClient.defaultTimeout) -> ProcessGitClient {
+    static func gitClient(home: URL, timeout: Duration = .seconds(30)) -> ProcessGitClient {
         ProcessGitClient(executableURL: URL(filePath: "/usr/bin/git"), timeout: timeout, environmentOverrides: gitEnvironment(home: home))
     }
 
