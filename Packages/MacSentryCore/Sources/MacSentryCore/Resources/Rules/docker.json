@@ -1,0 +1,22 @@
+[
+  {
+    "id": "docker.vmDisk",
+    "group": "Docker",
+    "category": "flagged",
+    "tier": "yellow",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw"
+      ],
+      "claimWholeFolder": false
+    },
+    "appBundleIDs": [
+      "com.docker.docker"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Docker virtual machine disk with all images, containers and volumes. Never move it, reclaim space with docker prune.",
+    "cliCommand": "docker system df && docker system prune -a && docker builder prune -a",
+    "verify": false
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "ollama.models",
+    "group": "Ollama",
+    "category": "flagged",
+    "tier": "yellow",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/.ollama/models"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.electron.ollama"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Downloaded Ollama models. Remove the ones you no longer use with ollama rm.",
+    "cliCommand": "ollama list  # then: ollama rm <model>:<tag>",
+    "verify": true
+  }
+]

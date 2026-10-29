@@ -1,0 +1,78 @@
+[
+  {
+    "id": "unity.cache",
+    "group": "Unity",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Unity/cache"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.unity3d.unityhub"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Unity package cache. Packages download again when a project needs them.",
+    "verify": true
+  },
+  {
+    "id": "unity.assetStore",
+    "group": "Unity",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Unity/Asset Store-5.x"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.unity3d.unityhub"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Downloaded Asset Store packages. Download them again from the Asset Store.",
+    "verify": false
+  },
+  {
+    "id": "unity.editors",
+    "group": "Unity",
+    "category": "flagged",
+    "tier": "yellow",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "/Applications/Unity/Hub/Editor/*"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.unity3d.unityhub"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Installed Unity editor version. Uninstall unused versions from Unity Hub.",
+    "verify": false
+  },
+  {
+    "id": "unity.logs",
+    "group": "Unity",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Logs/Unity"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.unity3d.unityhub"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Unity logs.",
+    "verify": false
+  }
+]

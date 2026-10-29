@@ -1,0 +1,175 @@
+[
+  {
+    "id": "xcode.derivedData",
+    "group": "Xcode",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Developer/Xcode/DerivedData"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.apple.dt.Xcode"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Build products and indexes. Xcode rebuilds them on the next build.",
+    "verify": false
+  },
+  {
+    "id": "xcode.deviceSupport",
+    "group": "Xcode",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Developer/Xcode/*DeviceSupport/*"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.apple.dt.Xcode"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Debug symbols for one OS version. Xcode copies them again when that device connects, which takes a while.",
+    "verify": false
+  },
+  {
+    "id": "xcode.previews",
+    "group": "Xcode",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Developer/Xcode/UserData/Previews"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.apple.dt.Xcode"
+    ],
+    "requiresAppQuit": true,
+    "reason": "SwiftUI preview builds. Xcode recreates them when you open a preview.",
+    "verify": false
+  },
+  {
+    "id": "xcode.cache",
+    "group": "Xcode",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Caches/com.apple.dt.Xcode"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.apple.dt.Xcode"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Xcode cache. Recreated automatically.",
+    "verify": false
+  },
+  {
+    "id": "xcode.archives",
+    "group": "Xcode",
+    "category": "devCache",
+    "tier": "red",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Developer/Xcode/Archives/*"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.apple.dt.Xcode"
+    ],
+    "requiresAppQuit": false,
+    "reason": "App archives with the dSYMs of shipped builds. You need them to symbolicate crash reports, review before removing.",
+    "verify": false
+  },
+  {
+    "id": "xcode.simCaches",
+    "group": "Xcode",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Developer/CoreSimulator/Caches"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.apple.dt.Xcode"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Simulator caches. Recreated automatically.",
+    "verify": false
+  },
+  {
+    "id": "xcode.simDevices",
+    "group": "Xcode",
+    "category": "flagged",
+    "tier": "yellow",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/Library/Developer/CoreSimulator/Devices"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.apple.dt.Xcode"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Simulator devices and their data. Remove unavailable ones with simctl instead of moving files.",
+    "cliCommand": "xcrun simctl delete unavailable",
+    "verify": false
+  },
+  {
+    "id": "xcode.simRuntimes",
+    "group": "Xcode",
+    "category": "flagged",
+    "tier": "yellow",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "/Library/Developer/CoreSimulator/Volumes"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.apple.dt.Xcode"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Simulator runtimes mounted by the system. Delete unused runtimes with simctl.",
+    "cliCommand": "xcrun simctl runtime list  # then: xcrun simctl runtime delete <id>",
+    "verify": false
+  },
+  {
+    "id": "xcode.xip",
+    "group": "Xcode",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Downloads/Xcode*.xip"
+      ],
+      "claimWholeFolder": false
+    },
+    "appBundleIDs": [
+      "com.apple.dt.Xcode"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Xcode installer archive. Download it again from Apple if you need it.",
+    "verify": false
+  }
+]

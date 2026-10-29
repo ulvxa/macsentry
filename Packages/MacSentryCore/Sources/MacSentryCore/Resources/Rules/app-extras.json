@@ -1,0 +1,303 @@
+[
+  {
+    "id": "vscode.vsix",
+    "group": "VS Code",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Application Support/Code/CachedExtensionVSIXs"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.microsoft.VSCode"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Downloaded extension packages. VS Code downloads them again when needed.",
+    "verify": false
+  },
+  {
+    "id": "antigravity.vsix",
+    "group": "Antigravity",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Application Support/Antigravity/CachedExtensionVSIXs"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.google.antigravity"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Downloaded extension packages. Antigravity downloads them again when needed.",
+    "verify": true
+  },
+  {
+    "id": "vscode.oldExt",
+    "group": "VS Code",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.vscode/extensions/*"
+      ],
+      "versionPolicy": "olderSibling",
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.microsoft.VSCode"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Older version of an extension that has a newer version installed.",
+    "verify": false
+  },
+  {
+    "id": "chrome.cache",
+    "group": "Chrome",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Caches/Google/Chrome"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.google.Chrome"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Chrome browsing cache. Recreated as you browse.",
+    "verify": false
+  },
+  {
+    "id": "spotify.cache",
+    "group": "Spotify",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Caches/com.spotify.client"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.spotify.client"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Spotify streaming cache. Recreated as you listen.",
+    "verify": false
+  },
+  {
+    "id": "spotify.offline",
+    "group": "Spotify",
+    "category": "appCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Application Support/Spotify/PersistentCache"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.spotify.client"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Spotify offline songs. They download again when you listen.",
+    "verify": false
+  },
+  {
+    "id": "steam.httpCache",
+    "group": "Steam",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Application Support/Steam/appcache/httpcache"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.valvesoftware.steam"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Steam web cache. Recreated automatically.",
+    "verify": false
+  },
+  {
+    "id": "steam.games",
+    "group": "Steam",
+    "category": "flagged",
+    "tier": "red",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/Library/Application Support/Steam/steamapps/common/*"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.valvesoftware.steam"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Installed Steam game. Uninstall it from Steam so your library stays consistent.",
+    "verify": false
+  },
+  {
+    "id": "telegram.media",
+    "group": "Telegram",
+    "category": "flagged",
+    "tier": "yellow",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/Library/Group Containers/*.ru.keepcoder.Telegram"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "ru.keepcoder.Telegram"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Telegram media cache. Clear it in Telegram > Settings > Data and Storage > Storage Usage.",
+    "verify": true
+  },
+  {
+    "id": "mobileSync.backups",
+    "group": "iOS Backups",
+    "category": "flagged",
+    "tier": "red",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/Library/Application Support/MobileSync/Backup/*"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "iPhone or iPad backup. Delete it from Finder or iMazing if you no longer need it.",
+    "verify": false
+  },
+  {
+    "id": "arduino.staging",
+    "group": "Arduino",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Arduino15/staging"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "cc.arduino.IDE2"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Downloaded Arduino board and library archives. Downloaded again when needed.",
+    "verify": false
+  },
+  {
+    "id": "rpiImager.cache",
+    "group": "Raspberry Pi Imager",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Caches/Raspberry Pi/Imager"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "org.raspberrypi.imagingutility"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Cached OS images. Raspberry Pi Imager downloads them again when needed.",
+    "verify": true
+  },
+  {
+    "id": "mail.downloads",
+    "group": "Mail",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Containers/com.apple.mail/Data/Library/Mail Downloads"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.apple.mail"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Attachments Mail saved when you opened them. The originals stay in your mailbox.",
+    "verify": false
+  },
+  {
+    "id": "logs.user",
+    "group": "Logs",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Logs/*"
+      ],
+      "minAgeDays": 30,
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "App log older than 30 days.",
+    "verify": false
+  },
+  {
+    "id": "crashReports",
+    "group": "Logs",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Logs/DiagnosticReports"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Crash and diagnostic reports.",
+    "verify": false
+  },
+  {
+    "id": "zoom.recordings",
+    "group": "Zoom",
+    "category": "oldLarge",
+    "tier": "red",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Documents/Zoom/*"
+      ],
+      "applyUserThresholds": true,
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "us.zoom.xos"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Zoom meeting recording that is large and old. This is your data, review it before removing.",
+    "verify": false
+  }
+]

@@ -1,0 +1,92 @@
+[
+  {
+    "id": "adobe.mediaCache",
+    "group": "Adobe",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Application Support/Adobe/Common/Media Cache Files"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Adobe media cache files. Premiere Pro and After Effects recreate them when needed.",
+    "verify": false
+  },
+  {
+    "id": "adobe.mediaCacheDB",
+    "group": "Adobe",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Application Support/Adobe/Common/Media Cache"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Adobe media cache database. Recreated automatically.",
+    "verify": false
+  },
+  {
+    "id": "adobe.caches",
+    "group": "Adobe",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Caches/Adobe"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": true,
+    "reason": "Adobe app caches. Recreated automatically.",
+    "verify": false
+  },
+  {
+    "id": "resolve.cacheClip",
+    "group": "DaVinci Resolve",
+    "category": "appCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Movies/CacheClip"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.blackmagic-design.DaVinciResolve"
+    ],
+    "requiresAppQuit": true,
+    "reason": "DaVinci Resolve render cache. Resolve renders it again when needed.",
+    "verify": true
+  },
+  {
+    "id": "blender.oldConfig",
+    "group": "Blender",
+    "category": "appCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Application Support/Blender/*"
+      ],
+      "versionPolicy": "olderThanInstalled",
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "org.blenderfoundation.blender"
+    ],
+    "requiresAppQuit": false,
+    "reason": "Settings and add-ons of a Blender version older than the one installed.",
+    "verify": false
+  }
+]
