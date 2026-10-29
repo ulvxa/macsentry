@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(rm:*)",
+      "Bash(sudo:*)",
+      "Bash(docker:*)",
+      "Bash(brew uninstall:*)",
+      "Bash(brew cleanup:*)",
+      "Bash(xcrun simctl delete:*)",
+      "Bash(xcrun simctl runtime delete:*)",
+      "Bash(ollama rm:*)",
+      "Bash(tmutil:*)",
+      "Bash(launchctl:*)"
+    ],
+    "allow": [
+      "Bash(xcodegen generate)",
+      "Bash(swift test:*)",
+      "Bash(xcodebuild:*)",
+      "Bash(swiftlint:*)",
+      "Bash(swiftformat:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)"
+    ]
+  }
+}
