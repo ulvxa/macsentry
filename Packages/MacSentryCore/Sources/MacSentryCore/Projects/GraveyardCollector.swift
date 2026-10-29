@@ -17,6 +17,15 @@ public struct GraveyardProject: Sendable, Equatable {
     }
 }
 
+public struct GraveyardArtifactClaim: Sendable, Equatable {
+    public let match: ArtifactMatch
+    public let projectRoot: URL
+
+    public var reason: String {
+        GraveyardCollector.artifactReason(match.rule, projectName: projectRoot.lastPathComponent)
+    }
+}
+
 public final class GraveyardCollector: Sendable {
     public static let finishConcurrency = 4
 
@@ -63,19 +72,27 @@ public final class GraveyardCollector: Sendable {
             + (quarantineFolder.map { [$0] } ?? [])
     }
 
+    public static func artifactReason(_ rule: ArtifactRule, projectName: String) -> String {
+        "`\(rule.folder)` of \(projectName). \(rule.ecosystem.regenerationHint)"
+    }
+
     public func visit(_ entry: FileEntry) -> WalkDecision {
+        classify(entry).decision
+    }
+
+    public func classify(_ entry: FileEntry) -> (decision: WalkDecision, artifact: GraveyardArtifactClaim?) {
         let path = entry.url.storagePath
-        guard let slash = path.lastIndex(of: "/"), slash != path.startIndex || path.count > 1 else { return .descend }
+        guard let slash = path.lastIndex(of: "/"), slash != path.startIndex || path.count > 1 else { return (.descend, nil) }
         let parentPath = slash == path.startIndex ? "/" : String(path[..<slash])
         let name = String(path[path.index(after: slash)...])
         let context = state.withLock { resolveContext(forParent: parentPath, in: &$0) }
 
-        guard context.inScope, !context.insideGit, name != ".git" else { return .descend }
+        guard context.inScope, !context.insideGit, name != ".git" else { return (.descend, nil) }
         if context.insideArtifact {
-            return .skipChildren
+            return (.skipChildren, nil)
         }
         if context.atSearchRoot, name.hasPrefix(".") {
-            return .descend
+            return (.descend, nil)
         }
 
         switch entry.kind {
@@ -83,9 +100,9 @@ public final class GraveyardCollector: Sendable {
             if let owner = context.owner, name != ".DS_Store", let modified = entry.modified {
                 state.withLock { $0.projects[owner]?.noteModified(modified) }
             }
-            return .descend
+            return (.descend, nil)
         case .symlink:
-            return .descend
+            return (.descend, nil)
         case .folder:
             return visitFolder(entry, path: path, parentPath: parentPath, name: name, context: context)
         }
@@ -105,19 +122,26 @@ public final class GraveyardCollector: Sendable {
         }
     }
 
-    private func visitFolder(_ entry: FileEntry, path: String, parentPath: String, name: String, context: Context) -> WalkDecision {
+    private func visitFolder(
+        _ entry: FileEntry,
+        path: String,
+        parentPath: String,
+        name: String,
+        context: Context,
+    ) -> (decision: WalkDecision, artifact: GraveyardArtifactClaim?) {
         if excludedPaths.contains(path) {
-            return .descend
+            return (.descend, nil)
         }
         if let owner = context.owner, artifactNames.contains(name) {
             let siblings = state.withLock { $0.siblings[parentPath] } ?? probe.contents(of: URL(filePath: parentPath))
             if let match = scanner.artifact(for: entry.url, name: name, siblings: siblings),
                !probe.itemExists(at: entry.url.appending(path: ".git")) {
-                state.withLock { state in
+                let root = state.withLock { state in
                     state.artifactPaths.insert(path)
                     state.projects[owner]?.add(ArtifactRecord(match: match, created: entry.created, modified: entry.modified))
+                    return state.projects[owner]?.root
                 }
-                return .skipChildren
+                return (.skipChildren, root.map { GraveyardArtifactClaim(match: match, projectRoot: $0) })
             }
         }
 
@@ -125,7 +149,7 @@ public final class GraveyardCollector: Sendable {
         let marker = scanner.isProjectRoot(entry.url, entries: entries)
             ?? (context.owner == nil ? implicitMarker(for: entry.url, entries: entries) : nil)
         let keepsSiblings = entries.contains { artifactNames.contains($0) }
-        guard marker != nil || keepsSiblings else { return .descend }
+        guard marker != nil || keepsSiblings else { return (.descend, nil) }
         state.withLock { state in
             if keepsSiblings {
                 state.siblings[path] = entries
@@ -134,7 +158,7 @@ public final class GraveyardCollector: Sendable {
                 register(entry, path: path, marker: marker, context: context, in: &state)
             }
         }
-        return .descend
+        return (.descend, nil)
     }
 
     private func implicitMarker(for dir: URL, entries: [String]) -> ProjectMarker? {
@@ -226,7 +250,7 @@ public final class GraveyardCollector: Sendable {
                 ruleID: rule.ruleID,
                 tier: rule.tier,
                 action: .quarantine,
-                reason: "`\(rule.folder)` of \(name). \(rule.ecosystem.regenerationHint)",
+                reason: artifactReason(rule, projectName: name),
                 logicalSize: size.logical,
                 allocatedSize: size.allocated,
                 freeableSize: size.freeable,

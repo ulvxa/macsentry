@@ -240,12 +240,14 @@ private struct ScanRun: Sendable {
                 path: entry.url.path(percentEncoded: false),
             ))
             let modified = [entry.modified, summary.latestModified].compactMap(\.self).max()
-            candidates = drafts.map { pass.context.candidate($0, for: entry, size: summary.size, modified: modified) }
+            candidates = drafts.filter { summary.size.freeable >= $0.minFreeableSize }
+                .map { pass.context.candidate($0, for: entry, size: summary.size, modified: modified) }
         } else {
             decision = .descend
             tree.addItem(entry)
             yieldProgress(pass.progress.count(files: 1, bytes: entry.allocatedSize, path: entry.url.path(percentEncoded: false)))
-            candidates = drafts.map { pass.context.candidate($0, for: entry) }
+            let size = sizeCalculator.sizeInfo(for: entry)
+            candidates = drafts.filter { size.freeable >= $0.minFreeableSize }.map { pass.context.candidate($0, for: entry, size: size) }
         }
 
         if !candidates.isEmpty {
