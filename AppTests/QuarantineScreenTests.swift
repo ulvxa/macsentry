@@ -243,6 +243,8 @@ struct QuarantineScreenTests {
         harness.model.requestTrash()
         let confirmation = try #require(harness.model.trashConfirmation)
         #expect(confirmation.isSimulated)
+        #expect(harness.model.isSimulatedTrash())
+        #expect(harness.model.trashTitle() == "Simulate Move to Trash…")
         await harness.model.confirmTrash(confirmation)
         #expect(inode(source) == originalInode)
         #expect(!exists(harness.trash))

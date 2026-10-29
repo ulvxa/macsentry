@@ -197,6 +197,21 @@ final class QuarantineModel {
         return "Nothing in the selection is still in quarantine"
     }
 
+    func isSimulatedTrash(for ids: Set<QuarantineRow.ID>? = nil) -> Bool {
+        let targets = actionableRows(for: ids)
+        return !targets.isEmpty && (app.environment.isDryRun || targets.allSatisfy(\.isDryRun))
+    }
+
+    func trashTitle(for ids: Set<QuarantineRow.ID>? = nil) -> String {
+        isSimulatedTrash(for: ids) ? "Simulate Move to Trash…" : "Move to Trash…"
+    }
+
+    func trashHelp(for ids: Set<QuarantineRow.ID>? = nil) -> String {
+        isSimulatedTrash(for: ids)
+            ? "Dry run: only marks the entries as trashed. Nothing is moved on disk."
+            : "Move to the macOS Trash after you confirm"
+    }
+
     var actionableBytes: Int64 {
         actionableRows().reduce(0) { $0 + $1.size }
     }

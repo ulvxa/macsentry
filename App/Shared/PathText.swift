@@ -28,10 +28,49 @@ struct PathText: View {
                 .truncationMode(.middle)
                 .help(full)
         case .block:
-            Text(full)
-                .font(.caption.monospaced())
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: Space.xs) {
+                Text(full)
+                    .font(.caption.monospaced())
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                PathBar(url: url)
+            }
         }
+    }
+}
+
+/// Clickable path: each segment opens that folder in Finder, the last one reveals the item itself.
+struct PathBar: View {
+    let url: URL
+
+    var body: some View {
+        let chain = FinderTarget.chain(of: url)
+        ScrollView(.horizontal) {
+            HStack(spacing: Space.xs) {
+                ForEach(Array(chain.enumerated()), id: \.offset) { offset, segment in
+                    if offset > 0 {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 8))
+                            .foregroundStyle(.tertiary)
+                            .accessibilityHidden(true)
+                    }
+                    let isLast = offset == chain.count - 1
+                    Button(FinderTarget.displayName(of: segment)) {
+                        if isLast {
+                            FinderActions.reveal([segment])
+                        } else {
+                            FinderActions.openFolder(segment)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(isLast ? .primary : .secondary)
+                    .help(isLast ? "Reveal in Finder" : "Open \(segment.path(percentEncoded: false)) in Finder")
+                }
+            }
+            .font(.caption)
+            .lineLimit(1)
+        }
+        .scrollIndicators(.hidden)
+        .defaultScrollAnchor(.trailing)
     }
 }

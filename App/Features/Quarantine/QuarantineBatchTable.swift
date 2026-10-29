@@ -88,7 +88,7 @@ private struct QuarantineContextMenu: View {
         Divider()
         Button("Restore", systemImage: "arrow.uturn.backward") { Task { await model.restore(ids) } }
             .disabled(reason != nil)
-        Button("Move to Trash…", systemImage: "trash", role: .destructive) { model.requestTrash(ids) }
+        Button(model.trashTitle(for: ids), systemImage: "trash", role: .destructive) { model.requestTrash(ids) }
             .disabled(reason != nil)
         if let reason, reason == QuarantineModel.putBackHint {
             Text(reason)

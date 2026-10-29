@@ -111,10 +111,7 @@ private struct NameCell: View {
     var body: some View {
         HStack(spacing: Space.s) {
             if let candidate = row.candidate {
-                Image(nsImage: FinderActions.icon(for: candidate.url))
-                    .resizable()
-                    .frame(width: 16, height: 16)
-                    .accessibilityHidden(true)
+                AppIconView(bundleID: candidate.appBundleID, fallback: candidate.url)
                 Text(row.name)
                     .lineLimit(1)
                     .truncationMode(.middle)

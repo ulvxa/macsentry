@@ -28,6 +28,28 @@ struct QuarantineInspector: View {
     }
 }
 
+struct DryRunBatchNotice: View {
+    let entryCount: Int
+
+    var body: some View {
+        Label {
+            Text(
+                (entryCount == 1 ? "This item was" : "This batch was")
+                    + " recorded by a dry run. Nothing was moved, so "
+                    + (entryCount == 1 ? "it is still in its original location" : "the items are still in their original locations")
+                    + " and there is nothing in quarantine to put in the Trash.",
+            )
+            .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "eye")
+        }
+        .font(.callout)
+        .padding(Space.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary, in: .rect(cornerRadius: Radius.inset))
+    }
+}
+
 private struct EntryDetails: View {
     let model: QuarantineModel
     let row: QuarantineRow
@@ -45,6 +67,9 @@ private struct EntryDetails: View {
                     TierLabel(entry.tier)
                     QuarantineStatusLabel(status: entry.status, isFreed: row.isFreed)
                 }
+            }
+            if row.isDryRun {
+                DryRunBatchNotice(entryCount: 1)
             }
             if entry.status == .trashed, !row.isFreed {
                 Label(QuarantineModel.putBackHint, systemImage: "info.circle")
@@ -100,6 +125,9 @@ private struct BatchDetails: View {
                     .foregroundStyle(.secondary)
                 TierSummary(counts: row.batch.tiers.mapValues(\.count))
             }
+            if row.isDryRun {
+                DryRunBatchNotice(entryCount: row.batch.itemCount)
+            }
             InspectorSection(title: "Folder") {
                 Text(row.batch.batch.folderName)
                     .font(.caption.monospaced())
@@ -143,9 +171,9 @@ private struct InspectorActions: View {
             Button("Restore", systemImage: "arrow.uturn.backward") { Task { await model.restore(ids) } }
                 .disabled(reason != nil)
                 .help(reason ?? "Move back to the original location")
-            Button("Move to Trash…", systemImage: "trash", role: .destructive) { model.requestTrash(ids) }
+            Button(model.trashTitle(for: ids), systemImage: "trash", role: .destructive) { model.requestTrash(ids) }
                 .disabled(reason != nil)
-                .help(reason ?? "Move to the macOS Trash after you confirm")
+                .help(reason ?? model.trashHelp(for: ids))
         }
         .buttonStyle(.bordered)
         .controlSize(.regular)

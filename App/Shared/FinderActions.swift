@@ -4,8 +4,22 @@ import Foundation
 @MainActor
 enum FinderActions {
     static func reveal(_ urls: [URL]) {
-        guard !urls.isEmpty else { return }
-        NSWorkspace.shared.activateFileViewerSelecting(urls)
+        let plan = FinderTarget.plan(for: urls)
+        if plan.openFolders.count > FinderTarget.maxOpenedWindows {
+            NSWorkspace.shared.activateFileViewerSelecting(plan.select + plan.openFolders)
+            return
+        }
+        if !plan.select.isEmpty {
+            NSWorkspace.shared.activateFileViewerSelecting(plan.select)
+        }
+        for folder in plan.openFolders {
+            NSWorkspace.shared.open(folder)
+        }
+    }
+
+    /// Opens the folder itself (or its nearest existing ancestor) in Finder.
+    static func openFolder(_ url: URL) {
+        NSWorkspace.shared.open(FinderTarget.nearestExisting(url))
     }
 
     static func copyPaths(_ urls: [URL]) {
