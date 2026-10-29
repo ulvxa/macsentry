@@ -64,14 +64,6 @@ schemes:
         MacSentryTests: [test]
     run:
       config: Debug
-      preActions:
-        - name: Dev fixture
-          settingsTarget: MacSentry
-          script: '"$SRCROOT/scripts/dev-fixture.sh" /tmp/macsentry-dev/root'
-      commandLineArguments:
-        "-MacSentryDryRun YES": true
-        "-MacSentryScanRoot /tmp/macsentry-dev/root": true
-        "-MacSentryDatabasePath /tmp/macsentry-dev/macsentry.sqlite": true
     test:
       config: Debug
       gatherCoverageData: false
@@ -84,3 +76,17 @@ schemes:
         "-MacSentryDryRun YES": true
         "-MacSentryScanRoot /tmp/macsentry-tests/root": true
         "-MacSentryDatabasePath /tmp/macsentry-tests/macsentry.sqlite": true
+  MacSentry Dev:
+    build:
+      targets:
+        MacSentry: all
+    run:
+      config: Debug
+      preActions:
+        - name: Dev fixture
+          settingsTarget: MacSentry
+          script: '"$SRCROOT/scripts/dev-fixture.sh" /tmp/macsentry-dev/root'
+      commandLineArguments:
+        "-MacSentryDryRun YES": true
+        "-MacSentryScanRoot /tmp/macsentry-dev/root": true
+        "-MacSentryDatabasePath /tmp/macsentry-dev/macsentry.sqlite": true
