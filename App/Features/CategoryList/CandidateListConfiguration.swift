@@ -19,7 +19,11 @@ struct CandidateListConfiguration {
         case .appCaches:
             CandidateListConfiguration(item: item, categories: [.appCache], groupsByRule: true, noScanSubject: "app caches")
         case .oldLarge:
-            CandidateListConfiguration(item: item, categories: [.oldLarge], noScanSubject: "old and large files")
+            CandidateListConfiguration(
+                item: item,
+                categories: [.oldLarge],
+                noScanSubject: "old and large files",
+            )
         case .orphans:
             CandidateListConfiguration(
                 item: item,
@@ -41,7 +45,11 @@ struct CandidateListConfiguration {
                 noScanSubject: "items that need a command line tool",
             )
         case .projects:
-            CandidateListConfiguration(item: item, categories: [.projectArtifact], noScanSubject: "idle projects")
+            CandidateListConfiguration(
+                item: item,
+                categories: [.projectArtifact],
+                noScanSubject: "idle projects",
+            )
         case .duplicates:
             CandidateListConfiguration(
                 item: item,
@@ -53,5 +61,15 @@ struct CandidateListConfiguration {
         case .overview, .quarantine:
             CandidateListConfiguration(item: item, categories: [], noScanSubject: item.title.lowercased())
         }
+    }
+}
+
+extension CandidateListConfiguration {
+    var usesThresholdFilters: Bool {
+        [.oldLarge, .projects, .duplicates].contains(item)
+    }
+
+    func defaultFilter(thresholds: Thresholds) -> FilterState {
+        usesThresholdFilters ? FilterState(thresholds: thresholds) : .unfiltered
     }
 }

@@ -2,8 +2,9 @@ import Foundation
 import MacSentryCore
 
 struct FilterState: Equatable {
-    static let ageRange = 1 ... 730
+    static let ageRange = 0 ... 730
     static let agePresets = [30, 90, 180, 365]
+    static let unfiltered = FilterState(minAgeDays: 0, minSizeBytes: 0)
 
     var minAgeDays: Int
     var minSizeBytes: Int64
@@ -46,7 +47,7 @@ struct FilterState: Equatable {
             categories: categories,
             tiers: usesTiers && tiers.count < Tier.allCases.count ? tiers : [],
             minFreeable: usesSize ? minSizeBytes : 0,
-            minAgeDays: usesAge ? minAgeDays : nil,
+            minAgeDays: usesAge && minAgeDays > 0 ? minAgeDays : nil,
             ageBasis: ageBasis,
             search: trimmed.isEmpty ? nil : trimmed,
         )
@@ -56,8 +57,8 @@ struct FilterState: Equatable {
         var parts: [String] = []
         for control in controls {
             switch control {
-            case .age: parts.append("Unused ≥ \(minAgeDays) days")
-            case .size: parts.append("≥ \(ByteFormat.string(minSizeBytes))")
+            case .age: parts.append(minAgeDays > 0 ? "Unused ≥ \(minAgeDays) days" : "Any age")
+            case .size: parts.append(minSizeBytes > 0 ? "≥ \(ByteFormat.string(minSizeBytes))" : "Any size")
             case .tiers: parts.append(tiers.count == Tier.allCases.count ? "all tiers" : Tier.allCases.filter(tiers.contains).map(\.word)
                     .joined(separator: ", "))
             }
@@ -76,12 +77,13 @@ enum FilterControl: Hashable {
 
 enum SizeStops {
     static let values: [Int64] = [
-        10_000_000, 20_000_000, 50_000_000, 100_000_000, 200_000_000, 500_000_000,
+        0, 10_000_000, 20_000_000, 50_000_000, 100_000_000, 200_000_000, 500_000_000,
         1_000_000_000, 2_000_000_000, 5_000_000_000, 10_000_000_000, 20_000_000_000, 50_000_000_000,
     ]
 
     static func index(for bytes: Int64) -> Int {
-        let target = log(Double(max(bytes, 1)))
-        return values.indices.min { abs(log(Double(values[$0])) - target) < abs(log(Double(values[$1])) - target) } ?? 0
+        guard bytes > 0 else { return 0 }
+        let target = log(Double(bytes))
+        return values.indices.dropFirst().min { abs(log(Double(values[$0])) - target) < abs(log(Double(values[$1])) - target) } ?? 0
     }
 }

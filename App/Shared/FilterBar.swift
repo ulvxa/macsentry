@@ -124,7 +124,7 @@ struct AgeThresholdControl: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: Space.s)
-                Text("\(days) days")
+                Text(days > 0 ? "\(days) days" : "Any age")
                     .font(.callout.weight(.medium))
                     .monospacedDigit()
                     .contentTransition(.identity)
@@ -141,7 +141,7 @@ struct AgeThresholdControl: View {
             }
             .labelsHidden()
             .controlSize(.small)
-            .accessibilityValue("\(days) days")
+            .accessibilityValue(days > 0 ? "\(days) days" : "Any age")
         }
     }
 }
@@ -179,7 +179,7 @@ struct SizeThresholdControl: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 Spacer(minLength: Space.s)
-                Text(ByteFormat.string(bytes))
+                Text(bytes > 0 ? ByteFormat.string(bytes) : "Any size")
                     .font(.callout.weight(.medium))
                     .monospacedDigit()
             }
@@ -195,9 +195,9 @@ struct SizeThresholdControl: View {
             }
             .labelsHidden()
             .controlSize(.small)
-            .accessibilityValue(ByteFormat.string(bytes))
+            .accessibilityValue(bytes > 0 ? ByteFormat.string(bytes) : "Any size")
             HStack {
-                Text("10 MB")
+                Text("Any")
                 Spacer()
                 Text("50 GB")
             }

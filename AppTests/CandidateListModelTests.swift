@@ -7,10 +7,10 @@ import Testing
 struct CandidateListModelTests {
     @Test func `moving the age filter changes results without a rescan`() async throws {
         let harness = try await CandidateHarness(name: "ListAge", candidates: [
-            CandidateHarness.candidate(id: 1, name: "Old", ageDays: 400),
-            CandidateHarness.candidate(id: 2, name: "Recent", ageDays: 40),
+            CandidateHarness.candidate(id: 1, name: "Old", category: .oldLarge, ruleID: "oldLarge", ageDays: 400),
+            CandidateHarness.candidate(id: 2, name: "Recent", category: .oldLarge, ruleID: "oldLarge", ageDays: 40),
         ])
-        let model = harness.list(.devCaches)
+        let model = harness.list(.oldLarge)
         #expect(model.filter.minAgeDays == 180)
         #expect(await eventually { model.candidates.map(\.id) == [1] })
 
@@ -24,19 +24,61 @@ struct CandidateListModelTests {
         let harness = try await CandidateHarness(
             name: "ListSize",
             candidates: [
-                CandidateHarness.candidate(id: 1, name: "Big", size: 5_000_000_000),
-                CandidateHarness.candidate(id: 2, name: "Small", size: 50_000_000),
+                CandidateHarness.candidate(id: 1, name: "Big", category: .oldLarge, ruleID: "oldLarge", size: 5_000_000_000),
+                CandidateHarness.candidate(id: 2, name: "Small", category: .oldLarge, ruleID: "oldLarge", size: 50_000_000),
             ],
             configure: { $0.minSizeBytes = 1_000_000_000 },
         )
-        let model = harness.list(.devCaches)
+        let model = harness.list(.oldLarge)
         #expect(model.filter.minSizeBytes == 1_000_000_000)
         #expect(model.candidateFilter.minFreeable == 1_000_000_000)
-        #expect(model.candidateFilter.categories == [.devCache])
+        #expect(model.candidateFilter.categories == [.oldLarge])
         #expect(await eventually { model.candidates.map(\.id) == [1] })
 
         model.filter.minSizeBytes = SizeStops.values[0]
         #expect(await eventually { model.candidates.count == 2 })
+    }
+
+    @Test func `cache orphan and flagged lists start without age or size filters`() async throws {
+        let harness = try await CandidateHarness(
+            name: "ListUnfiltered",
+            candidates: [
+                CandidateHarness.candidate(id: 1, name: "FreshCache", size: 2_000_000, ageDays: 0),
+                CandidateHarness.candidate(id: 2, name: "FreshAppCache", category: .appCache, ruleID: "npm.cache", size: 1000, ageDays: 1),
+                CandidateHarness.candidate(id: 3, name: "Leftover", category: .orphan, ruleID: "orphan.caches", size: 64000, ageDays: 2),
+                CandidateHarness.candidate(
+                    id: 4, name: "Docker.raw", category: .flagged, ruleID: "docker.vmDisk", action: .flagOnly, size: 3000, ageDays: 0,
+                ),
+            ],
+            configure: {
+                $0.minAgeDays = 365
+                $0.minSizeBytes = 5_000_000_000
+            },
+        )
+        for (item, id) in [(SidebarItem.devCaches, Int64(1)), (.appCaches, 2), (.orphans, 3), (.flagged, 4)] {
+            let model = harness.list(item)
+            #expect(model.defaultFilter == .unfiltered, "\(item)")
+            #expect(model.candidateFilter.minAgeDays == nil, "\(item)")
+            #expect(model.candidateFilter.minFreeable == 0, "\(item)")
+            #expect(await eventually { model.candidates.compactMap(\.id) == [id] }, "\(item)")
+
+            harness.app.settings.minAgeDays = 30
+            harness.app.settings.minSizeBytes = 100_000_000
+            model.thresholdsChanged(to: harness.app.settings.thresholds)
+            #expect(model.filter == .unfiltered, "\(item)")
+        }
+
+        let caches = harness.list(.devCaches)
+        caches.filter.minSizeBytes = SizeStops.values[1]
+        #expect(await eventually { caches.candidates.isEmpty })
+        caches.filter = .unfiltered
+        caches.filter.minAgeDays = 30
+        #expect(await eventually { caches.candidates.isEmpty })
+
+        let oldLarge = harness.list(.oldLarge)
+        #expect(oldLarge.filter.minAgeDays == 30)
+        #expect(oldLarge.filter.minSizeBytes == 100_000_000)
+        #expect(FilterState.unfiltered.summary(controls: FilterControl.listControls) == "Any age · Any size · all tiers")
     }
 
     @Test func `default selection is green only and never for orphans`() async throws {

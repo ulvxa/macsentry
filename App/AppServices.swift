@@ -10,6 +10,8 @@ struct AppServices: Sendable {
     let ruleGroups: [String: String]
     let scanConfig: @Sendable ([URL]) -> ScanConfig
     let makeScanService: @Sendable (ScanPipelineOptions) -> any ScanService
+    var volume: (any VolumeSampler)?
+    var snapshots: (any LocalSnapshotChecker)?
 
     static func live(
         environment: AppEnvironment,
@@ -34,6 +36,8 @@ struct AppServices: Sendable {
             ruleGroups: RuleGroups.bundled(),
             scanConfig: { pipeline.config(scanRoots: $0) },
             makeScanService: { pipeline.makeService(options: $0) },
+            volume: SystemVolumeSampler(),
+            snapshots: TmutilLocalSnapshotChecker(),
         )
     }
 }

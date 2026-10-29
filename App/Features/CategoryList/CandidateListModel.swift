@@ -53,7 +53,7 @@ final class CandidateListModel {
     init(configuration: CandidateListConfiguration, app: AppModel) {
         self.configuration = configuration
         self.app = app
-        let defaults = FilterState(thresholds: app.settings.thresholds)
+        let defaults = configuration.defaultFilter(thresholds: app.settings.thresholds)
         defaultFilter = defaults
         filter = defaults
     }
@@ -89,6 +89,7 @@ final class CandidateListModel {
     }
 
     func thresholdsChanged(to thresholds: Thresholds) {
+        guard configuration.usesThresholdFilters else { return }
         let updated = FilterState(thresholds: thresholds)
         var next = filter
         next.minAgeDays = updated.minAgeDays

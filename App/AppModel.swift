@@ -45,7 +45,9 @@ final class AppModel {
     private(set) var previousFinishedSession: ScanSession?
     var runningSessionID: Int64?
     private(set) var totals: [MacSentryCore.Category: CategoryTotal] = [:]
+    private(set) var totalsLoaded = false
     private(set) var quarantineTotals: QuarantineTotals?
+    var hasLocalSnapshots = false
     var isQuarantining = false
     var toast: Toast?
     var unreadableReport: UnreadableReport?
@@ -151,6 +153,7 @@ final class AppModel {
             alert = AppAlert(title: "Quarantine Check Failed", message: error.localizedDescription)
         }
         await refreshQuarantineTotals()
+        await refreshLocalSnapshots()
     }
 
     private func attachProtection(
@@ -225,14 +228,17 @@ final class AppModel {
         totalsTask?.cancel()
         totalsTask = nil
         totals = [:]
+        totalsLoaded = false
         guard let sessionID, let store = services?.candidates else { return }
         totalsTask = Task { [weak self] in
             do {
                 for try await value in store.observeTotals(session: sessionID) {
                     self?.totals = value
+                    self?.totalsLoaded = true
                 }
             } catch {
                 self?.totals = [:]
+                self?.totalsLoaded = true
             }
         }
     }
