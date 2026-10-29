@@ -22,7 +22,7 @@ public actor InMemoryCandidateStore: CandidateStore {
     private var dirNodeRows: [DirNode]
     var groupRows: [DuplicateGroup]
     private var projectRows: [Project]
-    private var ignoredPaths: Set<String> = []
+    private var ignoredPathDates: [String: Date] = [:]
     private var candidateObservers: [UUID: CandidateObserver] = [:]
     private var totalsObservers: [UUID: TotalsObserver] = [:]
     private let now: @Sendable () -> Date
@@ -178,15 +178,6 @@ public actor InMemoryCandidateStore: CandidateStore {
         notify()
     }
 
-    public func ignore(paths: [URL]) {
-        let stored = Set(paths.map(\.storagePath))
-        ignoredPaths.formUnion(stored)
-        for index in candidateRows.indices where candidateRows[index].status == .found && stored.contains(candidateRows[index].path) {
-            candidateRows[index].status = .ignored
-        }
-        notify()
-    }
-
     public func candidateCount(underPath path: URL, session: Int64) -> Int {
         let base = path.storagePath
         let prefix = base.hasSuffix("/") ? base : base + "/"
@@ -196,7 +187,7 @@ public actor InMemoryCandidateStore: CandidateStore {
     }
 
     public func isIgnored(_ url: URL) -> Bool {
-        ignoredPaths.contains(url.storagePath)
+        ignoredPathDates[url.storagePath] != nil
     }
 
     public func insert(_ candidates: [Candidate]) {
@@ -375,5 +366,34 @@ public extension InMemoryCandidateStore {
         projectRows
             .filter { $0.sessionID == session }
             .sorted { $0.artifactsSize != $1.artifactsSize ? $0.artifactsSize > $1.artifactsSize : ($0.id ?? 0) < ($1.id ?? 0) }
+    }
+}
+
+public extension InMemoryCandidateStore {
+    func ignore(paths: [URL]) {
+        let stored = Set(paths.map(\.storagePath))
+        for path in stored where ignoredPathDates[path] == nil {
+            ignoredPathDates[path] = Date()
+        }
+        for index in candidateRows.indices where candidateRows[index].status == .found && stored.contains(candidateRows[index].path) {
+            candidateRows[index].status = .ignored
+        }
+        notify()
+    }
+
+    func unignore(paths: [URL]) {
+        let stored = Set(paths.map(\.storagePath))
+        for path in stored {
+            ignoredPathDates[path] = nil
+        }
+        for index in candidateRows.indices where candidateRows[index].status == .ignored && stored.contains(candidateRows[index].path) {
+            candidateRows[index].status = .found
+        }
+        notify()
+    }
+
+    func ignoredPaths() -> [IgnoredPath] {
+        ignoredPathDates.map { IgnoredPath(url: URL(storagePath: $0.key), createdAt: $0.value) }
+            .sorted { ($0.createdAt, $1.url.storagePath) > ($1.createdAt, $0.url.storagePath) }
     }
 }

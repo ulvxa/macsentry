@@ -18,6 +18,9 @@ struct SettingsView: View {
             Tab("Never Touch", systemImage: "hand.raised") {
                 NeverTouchSettingsView()
             }
+            Tab("Ignored", systemImage: "eye.slash") {
+                IgnoredSettingsView()
+            }
             Tab("Projects", systemImage: "folder.badge.gearshape") {
                 ProjectsSettingsView()
             }

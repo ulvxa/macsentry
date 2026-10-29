@@ -95,6 +95,20 @@ struct CandidateStoreMutationTests {
     }
 
     @Test(arguments: StoreBackend.allCases)
+    func `unignore restores ignored candidates and forgets the path`(backend: StoreBackend) async throws {
+        let (store, _) = try makeStore(backend)
+        let movie = URL(filePath: "/Users/u/Downloads/Big_Movie.mov")
+        let quarantined = URL(filePath: "/Users/u/Library/Caches/old.thing")
+        try await store.ignore(paths: [movie, quarantined])
+        #expect(try await store.ignoredPaths().map(\.url.storagePath).sorted() == [quarantined.storagePath, movie.storagePath].sorted())
+
+        try await store.unignore(paths: [movie, quarantined])
+        #expect(try await store.candidate(id: 3)?.status == .found)
+        #expect(try await store.candidate(id: 6)?.status == .quarantined)
+        #expect(try await store.ignoredPaths().isEmpty)
+    }
+
+    @Test(arguments: StoreBackend.allCases)
     func `setStatus with no ids is a no-op`(backend: StoreBackend) async throws {
         let (store, _) = try makeStore(backend)
         try await store.setStatus(.trashed, ids: [])

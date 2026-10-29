@@ -56,6 +56,23 @@ extension AppModel {
         }
     }
 
+    func ignoredPaths() async -> [IgnoredPath] {
+        guard let services else { return [] }
+        return await (try? services.candidates.ignoredPaths()) ?? []
+    }
+
+    @discardableResult
+    func unignore(_ urls: [URL]) async -> Bool {
+        guard let services, !urls.isEmpty else { return false }
+        do {
+            try await services.candidates.unignore(paths: urls)
+        } catch {
+            alert = AppAlert(title: "Couldn't Stop Ignoring", message: error.localizedDescription)
+            return false
+        }
+        return await refreshProtection()
+    }
+
     func addToNeverTouch(_ candidates: [Candidate]) async {
         guard let services, !candidates.isEmpty else { return }
         do {

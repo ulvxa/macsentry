@@ -284,3 +284,26 @@ private extension Array {
         stride(from: 0, to: count, by: size).map { self[$0 ..< Swift.min($0 + size, count)] }
     }
 }
+
+public extension GRDBCandidateStore {
+    func unignore(paths: [URL]) async throws {
+        let stored = Array(Set(paths.map(\.storagePath)))
+        guard !stored.isEmpty else { return }
+        try await write { db in
+            for chunk in stored.chunks(of: Self.chunkSize) {
+                let marks = databaseQuestionMarks(count: chunk.count)
+                try db.execute(sql: "DELETE FROM ignored_path WHERE path IN (\(marks))", arguments: StatementArguments(chunk))
+                try db.execute(
+                    sql: "UPDATE candidate SET status = 'found' WHERE status = 'ignored' AND path IN (\(marks))",
+                    arguments: StatementArguments(chunk),
+                )
+            }
+        }
+    }
+
+    func ignoredPaths() async throws -> [IgnoredPath] {
+        try await read { db in
+            try IgnoredPath.order(Column("created_at").desc, Column("path")).fetchAll(db)
+        }
+    }
+}

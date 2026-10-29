@@ -42,6 +42,7 @@ Launch arguments override defaults for dev (`-MacSentryScanRoot`, `-MacSentryDry
 - **Thresholds**: age, size, age basis, live preview text "Currently matches 214 items, 61.3 GB" from the last session
 - **Profiles**: detected app groups with versions, toggle per group, rule count
 - **Never Touch**: built in list (read only, collapsed), user patterns table with add, remove, note, test field ("Type a path to see if it is protected")
+- **Ignored**: table of `ignored_path` rows (path, date). "Stop Ignoring" (selection, context menu, Delete key) or "Stop Ignoring All" removes the rows, flips matching `ignored` candidates back to `found` and refreshes protection
 - **Projects** and **Duplicates**: their roots and thresholds
 - **Notifications**: low space alert toggle and threshold
 - **Appearance**: System, Light, Dark

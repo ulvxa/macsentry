@@ -143,6 +143,10 @@ public protocol CandidateStore: Sendable {
     func setStatus(_ status: CandidateStatus, ids: [Int64]) async throws
     /// Records the paths in `ignored_path` and flips matching `found` candidates to `ignored`.
     func ignore(paths: [URL]) async throws
+    /// Removes the paths from `ignored_path` and flips matching `ignored` candidates back to `found`.
+    func unignore(paths: [URL]) async throws
+    /// Newest first.
+    func ignoredPaths() async throws -> [IgnoredPath]
 
     func children(of dirNodeID: Int64?, session: Int64) async throws -> [DirNode]
     func rootDirNodes(session: Int64) async throws -> [DirNode]
