@@ -97,7 +97,10 @@ extension AppModel {
     }
 
     func runningApps(among bundleIDs: Set<String>) -> Set<String> {
-        guard let inventory = services?.inventory else { return [] }
-        return bundleIDs.filter { inventory.isRunning(bundleID: $0) }
+        guard let services, !bundleIDs.isEmpty else { return [] }
+        if let running = services.runningBundleIDs {
+            return bundleIDs.intersection(running())
+        }
+        return bundleIDs.filter { services.inventory.isRunning(bundleID: $0) }
     }
 }

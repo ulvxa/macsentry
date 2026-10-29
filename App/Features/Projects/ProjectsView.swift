@@ -37,7 +37,7 @@ private struct ProjectsContent: View {
             }
         }
         .searchable(text: $model.filter.query, placement: .toolbar, prompt: "Filter by name or path")
-        .inspector(isPresented: $app.isInspectorPresented) {
+        .deferredInspector(isPresented: $app.isInspectorPresented) {
             ProjectInspector(entries: model.focusedEntries, blockReason: model.blockReason)
                 .inspectorColumnWidth(min: 260, ideal: 300, max: 380)
         }

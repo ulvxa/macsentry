@@ -6,21 +6,23 @@ struct ThresholdsSettingsView: View {
 
     @Environment(AppModel.self) private var model
     @State private var preview = ThresholdPreviewModel()
+    @State private var ageDraft: Double?
+    @State private var sizeDraft: Double?
 
     var body: some View {
         @Bindable var settings = model.settings
         Form {
             Section("Minimum Age") {
                 LabeledContent("Older than") {
-                    Text("\(settings.minAgeDays) days").monospacedDigit()
+                    Text("\(ageDraft.map { Int($0.rounded()) } ?? settings.minAgeDays) days").monospacedDigit()
                 }
-                Slider(
+                DraftSlider(
                     value: Binding(
                         get: { Double(settings.minAgeDays) },
                         set: { settings.minAgeDays = Int($0.rounded()) },
                     ),
+                    draft: $ageDraft,
                     in: 7 ... 730,
-                    step: 1,
                 ) {
                     Text("Minimum age")
                 } minimumValueLabel: {
@@ -40,13 +42,15 @@ struct ThresholdsSettingsView: View {
 
             Section("Minimum Size") {
                 LabeledContent("Larger than") {
-                    Text(settings.minSizeBytes.formatted(.byteCount(style: .file))).monospacedDigit()
+                    Text((sizeDraft.map(LogSizeScale.bytes(at:)) ?? settings.minSizeBytes).formatted(.byteCount(style: .file)))
+                        .monospacedDigit()
                 }
-                Slider(
+                DraftSlider(
                     value: Binding(
                         get: { LogSizeScale.position(for: settings.minSizeBytes) },
                         set: { settings.minSizeBytes = LogSizeScale.bytes(at: $0) },
                     ),
+                    draft: $sizeDraft,
                     in: 0 ... 1,
                 ) {
                     Text("Minimum size")

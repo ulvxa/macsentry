@@ -12,6 +12,8 @@ struct AppServices: Sendable {
     let makeScanService: @Sendable (ScanPipelineOptions, ScanControl) -> any ScanService
     var volume: (any VolumeSampler)?
     var snapshots: (any LocalSnapshotChecker)?
+    /// One snapshot of running bundle IDs; without it each lookup asks `inventory`, which queries NSWorkspace per ID.
+    var runningBundleIDs: (@Sendable () -> Set<String>)?
 
     static func live(
         environment: AppEnvironment,
@@ -44,6 +46,7 @@ struct AppServices: Sendable {
             makeScanService: { pipeline.makeService(options: $0, control: $1) },
             volume: SystemVolumeSampler(),
             snapshots: TmutilLocalSnapshotChecker(),
+            runningBundleIDs: SystemAppInventory.liveRunningBundleIDs,
         )
     }
 }

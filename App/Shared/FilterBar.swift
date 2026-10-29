@@ -116,8 +116,10 @@ struct FilterBar: View {
 struct AgeThresholdControl: View {
     let label: String
     @Binding var days: Int
+    @State private var draft: Double?
 
     var body: some View {
+        let days = draft.map { Int($0.rounded()) } ?? days
         VStack(alignment: .leading, spacing: Space.xs) {
             HStack(spacing: Space.s) {
                 Text(label)
@@ -132,10 +134,11 @@ struct AgeThresholdControl: View {
                     .labelsHidden()
                     .controlSize(.small)
             }
-            Slider(
-                value: Binding(get: { Double(days) }, set: { days = Int($0.rounded()) }),
+            // No `step`: macOS 26 draws a tick mark per step, and laying out 731 of them blocks the main thread for seconds.
+            DraftSlider(
+                value: Binding(get: { Double(self.days) }, set: { self.days = Int($0.rounded()) }),
+                draft: $draft,
                 in: Double(FilterState.ageRange.lowerBound) ... Double(FilterState.ageRange.upperBound),
-                step: 1,
             ) {
                 Text(label)
             }
@@ -171,8 +174,10 @@ struct AgePresetChips: View {
 struct SizeThresholdControl: View {
     let label: String
     @Binding var bytes: Int64
+    @State private var draft: Double?
 
     var body: some View {
+        let bytes = draft.map(Self.bytes(at:)) ?? bytes
         VStack(alignment: .leading, spacing: Space.xs) {
             HStack(spacing: Space.s) {
                 Text(label)
@@ -183,11 +188,9 @@ struct SizeThresholdControl: View {
                     .font(.callout.weight(.medium))
                     .monospacedDigit()
             }
-            Slider(
-                value: Binding(
-                    get: { Double(SizeStops.index(for: bytes)) },
-                    set: { bytes = SizeStops.values[min(max(Int($0.rounded()), 0), SizeStops.values.count - 1)] },
-                ),
+            DraftSlider(
+                value: Binding(get: { Double(SizeStops.index(for: self.bytes)) }, set: { self.bytes = Self.bytes(at: $0) }),
+                draft: $draft,
                 in: 0 ... Double(SizeStops.values.count - 1),
                 step: 1,
             ) {
@@ -205,6 +208,10 @@ struct SizeThresholdControl: View {
             .foregroundStyle(.tertiary)
             .accessibilityHidden(true)
         }
+    }
+
+    private static func bytes(at position: Double) -> Int64 {
+        SizeStops.values[min(max(Int(position.rounded()), 0), SizeStops.values.count - 1)]
     }
 }
 

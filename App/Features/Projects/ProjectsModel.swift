@@ -35,7 +35,11 @@ final class ProjectsModel {
     private(set) var blockReasons: [Int64: String] = [:]
     private(set) var queryCount = 0
     private var loadState: LoadState = .idle
-    private var projects: [Project] = []
+    private var projects: [Project] = [] {
+        didSet {
+            projectsByID = Dictionary(projects.compactMap { project in project.id.map { ($0, project) } }) { first, _ in first }
+        }
+    }
     private var gitProjectIDs: Set<Int64> = []
     private var artifacts: [Candidate] = []
     var checkedIDs: Set<Int64> = []
@@ -45,6 +49,7 @@ final class ProjectsModel {
     var failureReport: FailureReport?
 
     @ObservationIgnored private var seenIDs: Set<Int64> = []
+    @ObservationIgnored private var projectsByID: [Int64: Project] = [:]
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private let now: @MainActor () -> Date
     @ObservationIgnored private let probe: any ProjectFileProbe
@@ -228,7 +233,7 @@ extension ProjectsModel {
     }
 
     private func project(for artifact: Candidate) -> Project? {
-        projects.first { $0.id == artifact.projectID }
+        artifact.projectID.flatMap { projectsByID[$0] }
     }
 
     private func selectable(_ row: ProjectTableRow) -> [Candidate] {
