@@ -103,6 +103,12 @@ extension DefaultOrphanDetector {
             candidate.logicalSize += Int64(values?.fileSize ?? 0)
             candidate.freeableSize += Int64(values?.totalFileAllocatedSize ?? 0)
         }
+        if !userData.sidecars.isEmpty {
+            // Quarantine moves one path; moving a database without its -wal/-shm files corrupts it.
+            candidate.action = .flagOnly
+            candidate.cliCommand = nil
+            candidate.reason += " Remove it together with its companion files by hand if you are sure."
+        }
     }
 
     static func shellQuoted(_ value: String) -> String {

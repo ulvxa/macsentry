@@ -52,6 +52,7 @@ struct OrphanUserDataTests {
         #expect(store.logicalSize == 16384)
         #expect(store.freeableSize > store.allocatedSize)
         #expect(store.reason.contains("library.store-wal"))
+        #expect(store.action == .flagOnly)
         #expect(findings.finding(named: "lonely.sqlite-journal")?.candidate.tier == .red)
     }
 

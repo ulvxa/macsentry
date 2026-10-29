@@ -36,14 +36,13 @@ Native macOS 26 disk cleanup app. Finds reclaimable files, moves them to a quara
 - Never run `sudo`, `rm`, or any cleanup CLI (docker, brew, xcrun simctl, ollama) yourself
 
 ## Progress
-- Phase 0 done: XcodeGen project (arm64, team LN2CFAG956), Core pkg (GRDB 7.11), `Database` v1, models, `AppEnvironment`, `FixtureBuilder` (in `MacSentryTestSupport`), sidebar shell. Gotchas: use `MacSentryCore.Category` in App (ObjC clash), `GRDB.Database` inside Core
-- Phase 1 done: `ProtectionPolicyProvider` (single shared policy, `refresh()` after store changes), `GlobPattern`, never-touch/ignored stores, `SettingsStore` (all keys), `SystemPermissionService`, onboarding sheet, Settings tabs General/Thresholds/Never Touch/Appearance
-- Phase 2 done: `BulkFileWalker` (getattrlistbulk), `DefaultSizeCalculator`, `DefaultScanService` with pluggable `ScanEntryHandler`s (visit concurrently → descend/skip/claim, post-walk `finish`). Package freeable rides in `FileEntry.privateSize`; re-streamed candidates must be upserted by id
-- Phase 3 done: JSON rule catalog (strict decode), `DefaultRuleEngine`, `OldLargeRule`, `SystemAppInventory`; wired via `ScanPipeline.makeService(options:control:)` (graveyard → rules → orphans → duplicates handlers, protection gate drops denied quarantine candidates, flagOnly stays visible, one path = one category)
-- Phase 5 done: `DefaultQuarantineService` (only `trashItem` lives in `Trasher.swift`; renamex_np RENAME_EXCL, per-batch `journal.jsonl` + `manifest.json`, restore re-checks protection), Quarantine screen with banner, batches, trash confirm (Cancel default), restore
-- Phase 6 done: graveyard + Projects screen (artifact checkboxes, idle-days override, IDE block, inspector)
-- Safety review fixed: provider denies all until first `refresh()`, release builds ignore `-MacSentryScanRoot`/`-MacSentryDatabasePath`
-- Phase 4 done: Overview (hero, disk bar via `DiskUsageBreakdown`, glass cards, treemap, snapshot caveat), lists, inspector, HUD, Flagged; caches/orphans lists start unfiltered, Old and Large uses Settings thresholds
-- Phase 7 done: Orphans screen (High/Medium/Low, never preselected, "still installed" → never touch), Duplicates screen (keeper radio, clone label, can't quarantine every copy), HUD hashing progress + Skip Duplicates via per-scan `ScanControl`
-- Phase 9: read-only real dry-run scan analysis in progress; owner must do the real quarantine → trash → empty Trash check
-- Phase 8 done (pending manual panel check): `MenuBarExtra` + `MenuBarModel` (scan hooks are closures set by AppModel), `AppDelegate` keeps app alive, `DiskMonitor` 15 min samples, `LowSpaceNotifier`, `LoginItemService` (SMAppService), Settings Profiles/Projects/Duplicates/Notifications tabs
+- P0 done: XcodeGen (arm64, team LN2CFAG956), GRDB 7.11 `Database` v1, `AppEnvironment`, `FixtureBuilder`. Use `MacSentryCore.Category` in App, `GRDB.Database` in Core
+- P1 done: one shared `ProtectionPolicyProvider` (denies all until first `refresh()`), `GlobPattern`, never-touch/ignored stores, `SettingsStore`, FDA onboarding, Settings tabs
+- P2 done: `BulkFileWalker` (getattrlistbulk), `DefaultSizeCalculator`, `DefaultScanService` + `ScanEntryHandler`s; retention keeps 5 sessions + newest finished
+- P3 done: strict JSON rules, `DefaultRuleEngine`, `OldLargeRule` (skips `~/Library`), `SystemAppInventory` (incl. /System apps); `ScanPipeline.makeService(options:control:)`
+- P4 done: Overview, treemap, lists, inspector, HUD, Flagged; totals are action-aware (`SessionTotals`: Flagged = all flagOnly, reclaimable = quarantine only)
+- P5 done: `DefaultQuarantineService` (only `trashItem` in `Trasher.swift`, renamex_np RENAME_EXCL, `journal.jsonl` + `manifest.json`, restore re-checks protection, refuses running app bundle)
+- P6 done: graveyard + Projects screen. P7 done: orphans (user-data markers → red, DB with sidecars → flagOnly) + duplicates screens, Skip Duplicates
+- P8 done: menu bar panel, `DiskMonitor`, low-space notifier, launch at login, Profiles/Projects/Duplicates/Notifications tabs
+- P9: real dry run of `/` passed (no crash, 126 MB peak, 0 protected candidates); false positives fixed; `verify` rules confirmed except `resolve.cacheClip` (app not installed). Pending owner: 3-item quarantine → trash → empty Trash check, manual UI checks
+- Hygiene: remove agent worktrees after merge; `FixtureSweeper` clears fixtures >30 min old
