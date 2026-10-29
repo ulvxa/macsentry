@@ -16,7 +16,7 @@
     ],
     "requiresAppQuit": true,
     "reason": "Unity package cache. Packages download again when a project needs them.",
-    "verify": true
+    "verify": false
   },
   {
     "id": "unity.assetStore",

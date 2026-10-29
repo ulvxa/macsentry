@@ -232,6 +232,7 @@ struct PreparedScan: Sendable {
             control: control,
             policy: protection,
             gate: gate,
+            isInsideProject: collector.isInsideProject,
         ))
         return handlers
     }

@@ -11,9 +11,9 @@ struct PipelineOrphanDuplicateTests {
         let probe = try FixtureBuilder(name: "PipelineOrphanApps")
         let installed = Harness.app("Installed", bundleID: "com.installed.app", home: probe.root)
         let harness = try Harness("Orphans", apps: [installed])
-        try harness.fixture.file("Library/Application Support/com.fake.deletedapp/state.db", size: 64 * 1024)
-        try harness.fixture.file("Library/Application Support/com.installed.app/state.db", size: 64 * 1024)
-        try harness.fixture.file("Library/Application Support/com.apple.something/state.db", size: 64 * 1024)
+        try harness.fixture.file("Library/Application Support/com.fake.deletedapp/state.bin", size: 64 * 1024)
+        try harness.fixture.file("Library/Application Support/com.installed.app/state.bin", size: 64 * 1024)
+        try harness.fixture.file("Library/Application Support/com.apple.something/state.bin", size: 64 * 1024)
 
         let summary = try await harness.scan()
         let orphans = try await harness.candidates(summary.sessionID, in: .orphan)
@@ -26,7 +26,7 @@ struct PipelineOrphanDuplicateTests {
 
     @Test func `launch services lookup keeps a folder from being an orphan`() async throws {
         let harness = try Harness("OrphanLaunchServices")
-        try harness.fixture.file("Library/Application Support/com.fake.deletedapp/state.db", size: 1024)
+        try harness.fixture.file("Library/Application Support/com.fake.deletedapp/state.bin", size: 1024)
         let pipeline = ScanPipeline(
             environment: harness.pipeline.environment,
             database: harness.database,
@@ -58,7 +58,7 @@ struct PipelineOrphanDuplicateTests {
         return triple
     }
 
-    @Test func `identical files form one group, clones are near free, hard links are not duplicates`() async throws {
+    @Test func `identical files form one group, clones and hard links are not duplicates`() async throws {
         let harness = try Harness("Duplicates")
         let triple = try makeDuplicates(harness.fixture)
         let control = ScanControl()
@@ -68,7 +68,7 @@ struct PipelineOrphanDuplicateTests {
         let groups = try await harness.database.writer.read { db in
             try DuplicateGroup.filter(Column("session_id") == summary.sessionID).fetchAll(db)
         }
-        #expect(groups.count == 2)
+        #expect(groups.count == 1)
         let group = try #require(groups.first { $0.fileSize == 20 * Harness.megabyte })
         #expect(group.memberCount == 3)
         #expect(group.keeperURL.storagePath == triple[0].storagePath)
@@ -78,8 +78,8 @@ struct PipelineOrphanDuplicateTests {
         #expect(Set(members.map(\.url.storagePath)) == Set(triple.dropFirst().map(\.storagePath)))
         #expect(members.allSatisfy { $0.tier == .yellow && $0.ruleID == DuplicateGroup.ruleID })
 
-        let clones = try #require(groups.first { $0.fileSize == 5 * Harness.megabyte })
-        #expect(clones.isSpaceEfficient)
+        #expect(!groups.contains { $0.fileSize == 5 * Harness.megabyte })
+        #expect(!duplicates.contains { $0.url.lastPathComponent.hasPrefix("movie") })
         #expect(!duplicates.contains { $0.url.lastPathComponent.hasPrefix("linked") })
 
         var progress: HashingProgress?
@@ -87,6 +87,26 @@ struct PipelineOrphanDuplicateTests {
             progress = value
         }
         #expect(progress.map { $0.total > 0 && $0.done == $0.total } == true)
+    }
+
+    @Test func `files inside detected projects are never duplicates`() async throws {
+        let harness = try Harness("DuplicatesInProjects")
+        let fixture = harness.fixture
+        let size = 2 * Harness.megabyte
+        try fixture.file("Desktop/site/package.json", size: 10)
+        try fixture.file("Desktop/site/public/hero.png", size: size, fill: 0x71)
+        try fixture.folder("Desktop/repo/.git")
+        try fixture.file("Desktop/repo/assets/hero.png", size: size, fill: 0x71)
+        try fixture.file("Downloads/hero.png", size: size, fill: 0x71)
+        try fixture.file("Downloads/notes.bin", size: size, fill: 0x72)
+        try fixture.file("Documents/notes.bin", size: size, fill: 0x72)
+
+        let summary = try await harness.scan()
+        let duplicates = try await harness.candidates(summary.sessionID, in: .duplicate)
+
+        #expect(duplicates.count == 1)
+        #expect(duplicates.allSatisfy { $0.url.lastPathComponent == "notes.bin" })
+        #expect(!duplicates.contains { $0.url.storagePath.contains("/Desktop/") })
     }
 
     @Test func `skipping duplicates mid hash finishes the session without groups`() async throws {

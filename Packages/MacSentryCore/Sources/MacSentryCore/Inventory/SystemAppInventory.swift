@@ -26,11 +26,15 @@ public struct SystemAppInventory: AppInventory, AppHelperInventory {
 
     public static func standard(homeURL: URL) -> SystemAppInventory {
         let applications = URL(filePath: "/Applications", directoryHint: .isDirectory)
+        let systemApplications = URL(filePath: "/System/Applications", directoryHint: .isDirectory)
         return SystemAppInventory(
             appRoots: [
                 applications,
                 applications.appending(path: "Utilities", directoryHint: .isDirectory),
                 homeURL.appending(path: "Applications", directoryHint: .isDirectory),
+                systemApplications,
+                systemApplications.appending(path: "Utilities", directoryHint: .isDirectory),
+                URL(filePath: "/System/Library/CoreServices", directoryHint: .isDirectory),
             ],
             editorRoots: [applications.appending(path: "Unity/Hub/Editor", directoryHint: .isDirectory)],
         )

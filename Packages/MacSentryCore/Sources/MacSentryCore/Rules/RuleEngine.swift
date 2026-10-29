@@ -183,7 +183,9 @@ public struct DefaultRuleEngine: RuleEngine {
         let components = PathPattern.entryComponents(entry.url)
         let path = "/" + components.joined(separator: "/")
         var hits: [CompiledRuleSet.Hit] = (set.literalIndex[path] ?? []).filter { selectorsMatch(set.rules[$0.index], entry) }
-        for (index, pattern) in set.globbed where pattern.matches(components) && selectorsMatch(set.rules[index], entry) {
+        for (index, pattern) in set.globbed
+            where pattern.matches(components) && passesTrailingGlob(set.rules[index], pattern, entry)
+            && selectorsMatch(set.rules[index], entry) {
             hits.append(.init(index: index, specificity: pattern.literalPrefixLength))
         }
         for index in set.selectorOnly where selectorsMatch(set.rules[index], entry) {
@@ -226,10 +228,27 @@ public struct DefaultRuleEngine: RuleEngine {
             guard fileSystem.itemExists(entry.url.deletingLastPathComponent().appending(path: marker)) else { return false }
         }
         if let extensions = match.extensions {
-            let ext = entry.url.pathExtension.lowercased()
-            guard entry.kind != .folder, extensions.contains(where: { $0.lowercased() == ext }) else { return false }
+            let scopedFolder = entry.kind != .file && match.paths != nil
+            guard scopedFolder || (entry.kind != .folder && Self.hasExtension(entry.url, in: extensions)) else { return false }
         }
         return true
+    }
+
+    /// A trailing `*` lists a folder's children, so it must not pick up Finder or tool bookkeeping files next to them.
+    private func passesTrailingGlob(_ rule: Rule, _ pattern: PathPattern, _ entry: FileEntry) -> Bool {
+        guard pattern.endsWithGlob else { return true }
+        if !pattern.namesHiddenEntries, entry.url.lastPathComponent.hasPrefix(".") {
+            return false
+        }
+        return !rule.match.claimWholeFolder || entry.kind != .file || rule.match.extensions != nil
+    }
+
+    static func hasExtension(_ url: URL, in extensions: [String]) -> Bool {
+        var ext = url.pathExtension.lowercased()
+        if ext == "gz" {
+            ext = url.deletingPathExtension().pathExtension.lowercased()
+        }
+        return !ext.isEmpty && extensions.contains { $0.lowercased() == ext }
     }
 
     private func passesVersionPolicy(_ rule: Rule, _ entry: FileEntry) -> Bool {

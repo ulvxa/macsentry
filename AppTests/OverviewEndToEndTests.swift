@@ -49,7 +49,7 @@ struct OverviewEndToEndTests {
         try fixture.file("Code/webapp/node_modules/left-pad/index.js", size: 4096)
         try fixture.file("Code/webapp/.venv/pyvenv.cfg", size: 30)
         try fixture.file("Code/webapp/.venv/lib/site.py", size: 2048)
-        try fixture.file("Library/Application Support/com.fake.deletedapp/state.db", size: 64 * 1024)
+        try fixture.file("Library/Application Support/com.fake.deletedapp/state.bin", size: 64 * 1024)
         for index in 0 ..< 3 {
             try fixture.file("Downloads/dup-\(index).bin", size: 2 * megabyte, fill: 0x64)
         }
