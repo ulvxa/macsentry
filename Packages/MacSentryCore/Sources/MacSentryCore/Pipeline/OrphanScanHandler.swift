@@ -22,6 +22,7 @@ struct OrphanScanHandler: ScanEntryHandler {
             allowlist: allowlist,
             policy: policy,
             helperBundleIDs: helperBundleIDs,
+            cliTools: CLIToolInventory.scan(.standard(homeURL: library.deletingLastPathComponent())),
             applicationURL: applicationURL,
             isClaimedByRule: { rules.claims($0) || emitted.overlaps($0) },
             folderSize: { try await sizeCalculator.aggregate(folder: $0) },
