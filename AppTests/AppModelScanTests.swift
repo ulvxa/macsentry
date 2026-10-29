@@ -151,7 +151,8 @@ struct AppModelScanTests {
         #expect(DurationFormat.string(.seconds(131)) == "2 min 11 s")
         #expect(DurationFormat.string(.seconds(48)) == "48 s")
         #expect(DurationFormat.string(.seconds(3720)) == "1 h 2 min")
-        #expect(SizeStops.index(for: 500_000_000) == 5)
-        #expect(SizeStops.index(for: 1) == 0)
+        #expect(SizeStops.index(for: 500_000_000) == 6)
+        #expect(SizeStops.index(for: 0) == 0)
+        #expect(SizeStops.index(for: 1) == 1)
     }
 }

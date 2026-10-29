@@ -138,6 +138,20 @@ public struct QuarantineTotals: Sendable, Equatable {
     }
 }
 
+public struct ReconcileReport: Sendable, Equatable {
+    public let untracked: [URL]
+    public let skippedEntries: Int
+    public let markedMissing: Int
+    public let recovered: Int
+
+    public init(untracked: [URL], skippedEntries: Int, markedMissing: Int, recovered: Int) {
+        self.untracked = untracked
+        self.skippedEntries = skippedEntries
+        self.markedMissing = markedMissing
+        self.recovered = recovered
+    }
+}
+
 public enum QuarantineServiceError: LocalizedError, Equatable {
     case database(String)
 

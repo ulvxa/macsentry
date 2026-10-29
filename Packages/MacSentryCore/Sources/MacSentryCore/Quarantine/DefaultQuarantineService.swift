@@ -18,6 +18,7 @@ public actor DefaultQuarantineService: QuarantineService {
     let timeZone: TimeZone
     let now: @Sendable () -> Date
     let logger = Logger(subsystem: "com.macsentry.core", category: "Quarantine")
+    var activeBatchIDs: Set<Int64> = []
 
     public init(
         database: Database,
@@ -79,8 +80,8 @@ public actor DefaultQuarantineService: QuarantineService {
             do {
                 let entry = try await quarantineOne(candidate, batch: &batch, startedAt: startedAt)
                 moved.append(entry)
-                if let batch, moved.count.isMultiple(of: Self.flushInterval) {
-                    writeManifest(batch, entries: moved)
+                if let batchID = batch?.id, moved.count.isMultiple(of: Self.flushInterval) {
+                    rewriteManifest(batchID: batchID)
                 }
             } catch {
                 logger.error("Quarantine refused \(candidate.url.storagePath, privacy: .private): \(error.rawValue, privacy: .public)")
@@ -91,11 +92,16 @@ public actor DefaultQuarantineService: QuarantineService {
         guard let batch else {
             return QuarantineResult(batchID: nil, moved: [], failed: failed)
         }
+        if let batchID = batch.id {
+            activeBatchIDs.remove(batchID)
+        }
         if moved.isEmpty {
             discardEmptyBatch(batch)
             return QuarantineResult(batchID: nil, moved: [], failed: failed)
         }
-        writeManifest(batch, entries: moved)
+        if let batchID = batch.id {
+            rewriteManifest(batchID: batchID)
+        }
         return QuarantineResult(batchID: batch.id, moved: moved, failed: failed)
     }
 
@@ -105,28 +111,11 @@ public actor DefaultQuarantineService: QuarantineService {
         startedAt: Date,
     ) async throws(MoveFailure) -> QuarantineEntry {
         let source = candidate.url
-        guard candidate.action == .quarantine, !overlapsQuarantine(source), protectionPolicy.check(source) == .allowed else {
-            throw .protected
-        }
-        let info: FileStatus
-        do {
-            info = try FileSystemCalls.status(of: source)
-        } catch {
-            let failure = MoveFailure(errno: error.code)
-            if failure == .missing {
-                setCandidateStatus(.stale, id: candidate.id)
-            }
-            throw failure
-        }
+        guard candidate.action == .quarantine else { throw .protected }
+        let info = try preflight(candidate)
         try await verifyUnchanged(candidate, info: info)
         if let bundleID = candidate.appBundleID, appInventory.isRunning(bundleID: bundleID) {
             throw .appRunning
-        }
-        if info.isLocked {
-            throw .locked
-        }
-        if info.isDataless {
-            throw .dataless
         }
 
         let currentBatch: QuarantineBatch
@@ -135,76 +124,23 @@ public actor DefaultQuarantineService: QuarantineService {
         } else {
             currentBatch = try openBatch(startedAt: startedAt)
             batch = currentBatch
+            if let batchID = currentBatch.id {
+                activeBatchIDs.insert(batchID)
+            }
         }
         let destination = destinationURL(for: source, in: currentBatch)
         guard FileSystemCalls.pathLength(destination) < Int(PATH_MAX) else {
             logger.error("Quarantine path too long for \(source.storagePath, privacy: .private)")
             throw .unknown
         }
+        let entry = try makeEntry(candidate, batch: currentBatch, destination: destination)
         if !isDryRun {
+            try createParent(of: destination)
+            _ = try preflight(candidate)
             try move(source, to: destination)
+            appendJournal(entry, status: .inQuarantine, batch: currentBatch)
         }
-        return try record(candidate, batch: currentBatch, destination: destination)
-    }
-
-    private func verifyUnchanged(_ candidate: Candidate, info: FileStatus) async throws(MoveFailure) {
-        guard !info.isSymlink, info.isDirectory == (candidate.kind != .file) else { throw .changedSinceScan }
-        let current: Int64
-        if info.isDirectory {
-            do {
-                current = try await sizeCalculator.aggregate(folder: candidate.url).allocated
-            } catch {
-                throw FileSystemCalls.posixCode(of: error).map(MoveFailure.init(errno:)) ?? .unknown
-            }
-        } else {
-            current = info.allocatedBytes
-        }
-        let scanned = candidate.allocatedSize
-        if abs(current - scanned) * 10 > scanned {
-            throw .changedSinceScan
-        }
-    }
-
-    private func move(_ source: URL, to destination: URL) throws(MoveFailure) {
-        do {
-            try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-        } catch {
-            throw FileSystemCalls.posixCode(of: error).map(MoveFailure.init(errno:)) ?? .unknown
-        }
-        do {
-            try FileSystemCalls.renameExclusive(source, to: destination)
-        } catch {
-            throw MoveFailure(errno: error.code)
-        }
-    }
-
-    private func record(_ candidate: Candidate, batch: QuarantineBatch, destination: URL) throws(MoveFailure) -> QuarantineEntry {
-        guard let batchID = batch.id else { throw .unknown }
-        var entry = QuarantineEntry(
-            batchID: batchID,
-            candidateID: candidate.id,
-            originalURL: candidate.url,
-            quarantineURL: destination,
-            kind: candidate.kind,
-            ruleID: candidate.ruleID,
-            tier: candidate.tier,
-            size: candidate.freeableSize,
-            quarantinedAt: now(),
-            status: .inQuarantine,
-        )
-        do {
-            try database.writer.write { db in
-                try entry.insert(db)
-                try Self.updateCandidate(db, id: candidate.id, status: .quarantined)
-            }
-        } catch {
-            logger.error("Recording quarantine entry failed: \(error.localizedDescription, privacy: .public)")
-            if !isDryRun {
-                try? FileSystemCalls.renameExclusive(destination, to: candidate.url)
-            }
-            throw .unknown
-        }
-        return entry
+        return try record(entry, batch: currentBatch)
     }
 
     private func openBatch(startedAt: Date) throws(MoveFailure) -> QuarantineBatch {

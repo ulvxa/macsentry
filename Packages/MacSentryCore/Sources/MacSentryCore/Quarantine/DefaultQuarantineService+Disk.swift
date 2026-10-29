@@ -55,7 +55,7 @@ extension DefaultQuarantineService {
     }
 
     func writeManifest(_ batch: QuarantineBatch, entries: [QuarantineEntry]) {
-        guard !batch.dryRun else { return }
+        guard !batch.dryRun, !isDryRun else { return }
         let folder = batchFolder(batch)
         guard (try? FileSystemCalls.status(of: folder))?.isDirectory == true else { return }
         let manifest = QuarantineManifest(batch: batch, entries: entries, timeZone: timeZone)
@@ -95,7 +95,7 @@ extension DefaultQuarantineService {
                 .fetchCount(db)
             return try (QuarantineBatch.fetchOne(db, key: batchID), unsettled)
         }
-        guard let loaded, let batch = loaded.0, loaded.1 == 0, !batch.dryRun else { return }
+        guard !activeBatchIDs.contains(batchID), let loaded, let batch = loaded.0, loaded.1 == 0, !batch.dryRun, !isDryRun else { return }
         let folder = batchFolder(batch)
         guard (try? FileSystemCalls.status(of: folder))?.isDirectory == true else { return }
         removeEmptyDirectories(below: folder)
@@ -118,14 +118,16 @@ extension DefaultQuarantineService {
     }
 
     private func containsOnlyLeftovers(_ folder: URL) -> Bool {
-        let manifest = folder.appending(path: Self.manifestName, directoryHint: .notDirectory).storagePath
+        let ownFiles = Set([Self.manifestName, Self.journalName].map {
+            folder.appending(path: $0, directoryHint: .notDirectory).storagePath
+        })
         return descendants(of: folder).allSatisfy { url in
             guard let info = try? FileSystemCalls.status(of: url) else { return true }
             if info.isDirectory {
                 return true
             }
             guard info.mode & S_IFMT == S_IFREG else { return false }
-            return url.storagePath == manifest || url.lastPathComponent == ".DS_Store"
+            return ownFiles.contains(url.storagePath) || url.lastPathComponent == ".DS_Store"
         }
     }
 

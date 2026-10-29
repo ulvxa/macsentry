@@ -28,6 +28,9 @@ struct ProtectionPolicyTests {
         "Pictures/Old/Trip.photoslibrary/database", "Pictures/Archive.photolibrary",
         "MacSentry Quarantine", "MacSentry Quarantine/2026-10-29_064512/Users/x/Library/Caches/foo",
         "Library/Application Support/MacSentry", "Library/Application Support/MacSentry/macsentry.sqlite",
+        ".Trash/x", ".Trash/old/movie.mov", "Library/Safari", "Library/Safari/History.db", "Library/Calendars",
+        "Library/Calendars/Calendar Cache", "Library/Application Support/MobileSync/Backup",
+        "Library/Application Support/MobileSync/Backup/00008110-001A",
         "Documents", "Desktop", "Downloads", "Movies", "Library", "Code",
         "Code/app/.git", "Code/app/.git/objects", "Code/app", "Code/app/src", "Code/app/src/main.swift",
         "Code/app/node_modules/pkg/.git", "Code/app/packages/web/README.md",
@@ -163,6 +166,13 @@ struct ProtectionPolicyTests {
         let home = try Home(isKnownArtifact: { $0.lastPathComponent == "src" })
         #expect(try home.check("Code/app/src") == .allowed)
         #expect(try home.check("Code/app/node_modules").isDenied)
+    }
+
+    @Test func `unparsable never touch pattern denies every path`() throws {
+        let home = try Home(neverTouch: ["~/Work", "~/a[b]"])
+        #expect(try home.check("Library/Caches/com.example.app")
+            == .denied("Never Touch pattern ~/a[b] could not be read, so everything is protected until it is fixed"))
+        #expect(try home.check("big.iso").isDenied)
     }
 
     @Test func `database folder outside home is denied`() throws {

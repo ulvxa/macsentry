@@ -20,33 +20,21 @@ struct CandidateListConfiguration {
         case .appCaches:
             CandidateListConfiguration(item: item, categories: [.appCache], groupsByRule: true, noScanSubject: "app caches")
         case .oldLarge:
-            CandidateListConfiguration(item: item, categories: [.oldLarge], noScanSubject: "old and large files")
+            CandidateListConfiguration(
+                item: item,
+                categories: [.oldLarge],
+                noScanSubject: "old and large files",
+            )
         case .orphans:
-            CandidateListConfiguration(
-                item: item,
-                categories: [.orphan],
-                actions: [.quarantine, .flagOnly],
-                defaultCheckedTiers: [],
-                collapsedByDefault: [Confidence.low.sectionTitle],
-                emptyTitle: "No leftovers found",
-                emptyMessage: "Nothing in your Library looks orphaned above your thresholds.",
-                noScanSubject: "leftover app files",
-            )
+            .orphans
         case .flagged:
+            .flagged
+        case .projects:
             CandidateListConfiguration(
                 item: item,
-                categories: [.flagged, .orphan],
-                actions: [.flagOnly],
-                groupsByRule: true,
-                defaultCheckedTiers: [],
-                controls: [.size(label: "Size at least"), .tiers],
-                isCheckable: false,
-                emptyTitle: "Nothing flagged",
-                emptyMessage: "Items that need a command line tool to clean appear here.",
-                noScanSubject: "items that need a command line tool",
+                categories: [.projectArtifact],
+                noScanSubject: "idle projects",
             )
-        case .projects:
-            CandidateListConfiguration(item: item, categories: [.projectArtifact], noScanSubject: "idle projects")
         case .duplicates:
             CandidateListConfiguration(
                 item: item,
@@ -58,5 +46,43 @@ struct CandidateListConfiguration {
         case .overview, .quarantine:
             CandidateListConfiguration(item: item, categories: [], noScanSubject: item.title.lowercased())
         }
+    }
+}
+
+extension CandidateListConfiguration {
+    private static var orphans: CandidateListConfiguration {
+        CandidateListConfiguration(
+            item: .orphans,
+            categories: [.orphan],
+            actions: [.quarantine, .flagOnly],
+            defaultCheckedTiers: [],
+            collapsedByDefault: [Confidence.low.sectionTitle],
+            emptyTitle: "No leftovers found",
+            emptyMessage: "Nothing in your Library looks orphaned.",
+            noScanSubject: "leftover app files",
+        )
+    }
+
+    private static var flagged: CandidateListConfiguration {
+        CandidateListConfiguration(
+            item: .flagged,
+            categories: [.flagged, .orphan],
+            actions: [.flagOnly],
+            groupsByRule: true,
+            defaultCheckedTiers: [],
+            controls: [.size(label: "Size at least"), .tiers],
+            isCheckable: false,
+            emptyTitle: "Nothing flagged",
+            emptyMessage: "Items that need a command line tool to clean appear here.",
+            noScanSubject: "items that need a command line tool",
+        )
+    }
+
+    var usesThresholdFilters: Bool {
+        [.oldLarge, .projects, .duplicates].contains(item)
+    }
+
+    func defaultFilter(thresholds: Thresholds) -> FilterState {
+        usesThresholdFilters ? FilterState(thresholds: thresholds) : .unfiltered
     }
 }

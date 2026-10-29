@@ -54,86 +54,156 @@ extension DefaultQuarantineService {
     }
 
     public func reconcile() async throws {
+        try await reconcileWithReport()
+    }
+
+    @discardableResult
+    public func reconcileWithReport() async throws -> ReconcileReport {
         var changed = Set<Int64>()
-        for manifest in loadManifests() {
-            try changed.formUnion(importManifest(manifest))
+        var skipped = 0
+        for source in loadBatchSources() {
+            let outcome = try importBatch(source)
+            changed.formUnion(outcome.changed)
+            skipped += outcome.skipped
         }
-        let candidates = try read { db in
+        let tracked = try read { db in
             try QuarantineEntry
-                .filter(Column("status") == QuarantineStatus.inQuarantine.rawValue)
+                .filter([QuarantineStatus.inQuarantine, QuarantineStatus.missing].map(\.rawValue).contains(Column("status")))
                 .filter(sql: "batch_id IN (SELECT id FROM quarantine_batch WHERE dry_run = 0)")
                 .fetchAll(db)
         }
-        let vanished = candidates.filter { !FileSystemCalls.exists($0.quarantineURL) }
-        if !vanished.isEmpty {
-            try write { db in
-                for var entry in vanished {
-                    entry.status = .missing
+        var updates: [QuarantineEntry] = []
+        for var entry in tracked {
+            switch (entry.status, FileSystemCalls.presence(of: entry.quarantineURL)) {
+            case (.inQuarantine, false?): entry.status = .missing
+            case (.missing, true?): entry.status = .inQuarantine
+            default: continue
+            }
+            updates.append(entry)
+        }
+        if !updates.isEmpty {
+            try write { [updates] db in
+                for entry in updates {
                     try entry.update(db)
                 }
             }
-            changed.formUnion(vanished.map(\.batchID))
+            changed.formUnion(updates.map(\.batchID))
         }
         for batchID in changed.sorted() {
             rewriteManifest(batchID: batchID)
         }
+        let report = try ReconcileReport(
+            untracked: findUntracked(),
+            skippedEntries: skipped,
+            markedMissing: updates.count { $0.status == .missing },
+            recovered: updates.count { $0.status == .inQuarantine },
+        )
+        for url in report.untracked {
+            logger.notice("Untracked item in quarantine folder, left in place: \(url.storagePath, privacy: .private)")
+        }
+        return report
     }
 
-    private func loadManifests() -> [QuarantineManifest] {
-        let folders = (try? FileManager.default.contentsOfDirectory(
-            at: quarantineRoot,
-            includingPropertiesForKeys: nil,
-        )) ?? []
-        return folders.sorted { $0.lastPathComponent < $1.lastPathComponent }.compactMap { folder in
-            guard (try? FileSystemCalls.status(of: folder))?.isDirectory == true else { return nil }
+    private struct BatchSource {
+        let folderName: String
+        let createdAt: Date
+        let dryRun: Bool
+        let entries: [QuarantineManifest.Entry]
+    }
+
+    private func batchFolders() -> [URL] {
+        let folders = (try? FileManager.default.contentsOfDirectory(at: quarantineRoot, includingPropertiesForKeys: nil)) ?? []
+        return folders
+            .filter { (try? FileSystemCalls.status(of: $0))?.isDirectory == true }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    private func loadBatchSources() -> [BatchSource] {
+        batchFolders().compactMap { folder in
+            let name = folder.lastPathComponent
+            var manifest: QuarantineManifest?
             let manifestURL = folder.appending(path: Self.manifestName, directoryHint: .notDirectory)
-            guard FileSystemCalls.exists(manifestURL) else { return nil }
-            do {
-                let manifest = try QuarantineManifest.decode(Data(contentsOf: manifestURL))
-                guard manifest.batch == folder.lastPathComponent else { return nil }
-                return manifest
-            } catch {
-                logger.error("Skipping unreadable manifest in \(folder.lastPathComponent, privacy: .public)")
-                return nil
+            if FileSystemCalls.exists(manifestURL) {
+                do {
+                    manifest = try QuarantineManifest.decode(Data(contentsOf: manifestURL))
+                } catch {
+                    logger.error("Skipping unreadable manifest in \(name, privacy: .public)")
+                }
             }
+            if let decoded = manifest, decoded.batch != name {
+                logger.error("Skipping manifest naming another batch in \(name, privacy: .public)")
+                manifest = nil
+            }
+            let listed = Set(manifest?.entries.map(\.quarantinePath) ?? [])
+            let journaled = Self.journalEntries(in: folder).filter { !listed.contains($0.quarantinePath) }
+            guard manifest != nil || !journaled.isEmpty else { return nil }
+            return BatchSource(
+                folderName: name,
+                createdAt: manifest?.createdDate(timeZone: timeZone) ?? Self.batchDate(fromFolderName: name, timeZone: timeZone) ?? now(),
+                dryRun: manifest?.dryRun ?? false,
+                entries: (manifest?.entries ?? []) + journaled,
+            )
         }
     }
 
-    private func importManifest(_ manifest: QuarantineManifest) throws -> Set<Int64> {
-        let folder = quarantineRoot.appending(path: manifest.batch, directoryHint: .isDirectory)
-        let createdAt = manifest.createdDate(timeZone: timeZone) ?? now()
-        return try write { db in
-            var batch = try QuarantineBatch.filter(Column("folder_name") == manifest.batch).fetchOne(db)
-                ?? QuarantineBatch(folderName: manifest.batch, createdAt: createdAt, dryRun: manifest.dryRun)
+    private func importBatch(_ source: BatchSource) throws -> (changed: Set<Int64>, skipped: Int) {
+        let folder = quarantineRoot.appending(path: source.folderName, directoryHint: .isDirectory)
+        let policy = protectionPolicy
+        let outcome = try write { db -> (changed: Set<Int64>, skipped: Int) in
+            var batch = try QuarantineBatch.filter(Column("folder_name") == source.folderName).fetchOne(db)
+                ?? QuarantineBatch(folderName: source.folderName, createdAt: source.createdAt, dryRun: source.dryRun)
             if batch.id == nil {
                 try batch.insert(db)
             }
-            guard let batchID = batch.id else { return [] }
+            guard let batchID = batch.id else { return ([], 0) }
             var inserted = false
-            for item in manifest.entries {
-                let quarantineURL = URL(storagePath: item.quarantinePath)
-                guard item.originalPath.hasPrefix("/"), Self.isStrictlyInside(quarantineURL, folder) else { continue }
+            var skipped = 0
+            for item in source.entries {
                 let exists = try QuarantineEntry
-                    .filter(Column("batch_id") == batchID && Column("quarantine_path") == quarantineURL.storagePath)
+                    .filter(Column("batch_id") == batchID && Column("quarantine_path") == item.quarantinePath)
                     .fetchCount(db) > 0
                 if exists {
+                    continue
+                }
+                guard Self.isMirrored(item.quarantinePath, original: item.originalPath, in: folder),
+                      policy.check(URL(storagePath: item.originalPath)) == .allowed
+                else {
+                    skipped += 1
                     continue
                 }
                 var entry = QuarantineEntry(
                     batchID: batchID,
                     originalURL: URL(storagePath: item.originalPath),
-                    quarantineURL: quarantineURL,
+                    quarantineURL: URL(storagePath: item.quarantinePath),
                     kind: item.kind,
                     ruleID: item.ruleId,
                     tier: item.tier,
                     size: item.size,
-                    quarantinedAt: createdAt,
+                    quarantinedAt: source.createdAt,
                     status: item.status,
                 )
                 try entry.insert(db)
                 inserted = true
             }
-            return inserted ? [batchID] : []
+            return (inserted ? [batchID] : [], skipped)
+        }
+        if outcome.skipped > 0 {
+            logger.error("Skipped \(outcome.skipped) manifest entries in \(source.folderName, privacy: .public) that failed validation")
+        }
+        return outcome
+    }
+
+    private func findUntracked() throws -> [URL] {
+        let (batches, entries) = try read { db in
+            try (QuarantineBatch.filter(Column("dry_run") == false).fetchAll(db), QuarantineEntry.fetchAll(db))
+        }
+        let grouped = Dictionary(grouping: entries, by: \.batchID)
+        let known = Dictionary(batches.map { ($0.folderName, $0) }) { first, _ in first }
+        return batchFolders().flatMap { folder -> [URL] in
+            guard let batch = known[folder.lastPathComponent] else {
+                return Self.holdsContent(folder.storagePath) ? [folder] : []
+            }
+            return untrackedItems(in: batch, entries: batch.id.flatMap { grouped[$0] } ?? [])
         }
     }
 

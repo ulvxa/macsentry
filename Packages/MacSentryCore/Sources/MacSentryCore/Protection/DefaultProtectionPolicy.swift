@@ -23,6 +23,7 @@ public struct DefaultProtectionPolicy: ProtectionPolicy {
         "/Applications/*.app, ~/Applications/*.app, /Users/*, /Volumes/*",
         "~/Library/Keychains, ~/Library/Mail, ~/Library/Messages, ~/Library/Accounts",
         "~/Library/Mobile Documents, ~/Library/CloudStorage, ~/Library/Cookies, ~/Library/LaunchAgents",
+        "~/Library/Safari, ~/Library/Calendars, ~/Library/Application Support/MobileSync/Backup, ~/.Trash",
         "~/Library/Preferences/*.plist of installed apps",
         "~/.ssh, ~/.gnupg, ~/.aws, ~/.config/gcloud, ~/.kube, ~/.docker/config.json, dotfiles in ~",
         "~/Library/Application Support/Ledger Live and anything named *wallet* under Application Support",
@@ -52,6 +53,10 @@ public struct DefaultProtectionPolicy: ProtectionPolicy {
         ("Library/Accounts", "Accounts"),
         ("Library/Cookies", "Cookies"),
         ("Library/LaunchAgents", "Launch agents"),
+        ("Library/Safari", "Safari data"),
+        ("Library/Calendars", "Calendars"),
+        ("Library/Application Support/MobileSync/Backup", "iPhone and iPad backups"),
+        (".Trash", "Trash"),
         (".ssh", "SSH keys"),
         (".gnupg", "GPG keys"),
         (".aws", "AWS credentials"),
@@ -86,6 +91,7 @@ public struct DefaultProtectionPolicy: ProtectionPolicy {
     private let databaseFolder: NormalizedPath
     private let userApplications: NormalizedPath
     private let patterns: [GlobPattern]
+    private let unreadablePattern: String?
     private let isKnownArtifact: ArtifactPredicate
 
     public init(
@@ -101,7 +107,17 @@ public struct DefaultProtectionPolicy: ProtectionPolicy {
         homeIsTemporary = Self.temporaryRoots.contains { home.count > $0.count && home.isInside($0) }
         userApplications = home.appending(["Applications"])
         self.isKnownArtifact = isKnownArtifact
-        patterns = neverTouchPatterns.compactMap { try? GlobPattern($0, homeURL: homeURL) }
+        var parsed: [GlobPattern] = []
+        var unreadable: String?
+        for raw in neverTouchPatterns {
+            do {
+                try parsed.append(GlobPattern(raw, homeURL: homeURL))
+            } catch {
+                unreadable = unreadable ?? raw
+            }
+        }
+        patterns = parsed
+        unreadablePattern = unreadable
 
         let database = PathResolver.physical(databaseURL)
         let folder = NormalizedPath(components: Array(database.components.dropLast()))
@@ -122,6 +138,9 @@ public struct DefaultProtectionPolicy: ProtectionPolicy {
     }
 
     public func check(_ url: URL) -> ProtectionVerdict {
+        if let unreadablePattern {
+            return .denied("Never Touch pattern \(unreadablePattern) could not be read, so everything is protected until it is fixed")
+        }
         let physical = PathResolver.physical(url)
         let lexical = PathResolver.lexical(url)
         for path in physical == lexical ? [physical] : [physical, lexical] {

@@ -170,6 +170,7 @@ extension AppModel {
             toast = Toast(kind: .scanFinished(summary), action: ToastAction(title: "Review", destination: .overview))
             await reloadSessions(preferring: summary.sessionID)
             await menuBar.refreshTotals()
+            await refreshLocalSnapshots()
         case .cancelled, .running:
             scanState = .cancelled
             toast = Toast(kind: .scanCancelled(hasPreviousResults: currentSessionID != nil))

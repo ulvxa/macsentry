@@ -55,9 +55,8 @@ extension DefaultQuarantineService {
         }
         if !batch.dryRun {
             guard !isDryRun else { throw fail(.dryRunMode) }
-            guard Self.isStrictlyInside(entry.quarantineURL, batchFolder(batch)) else { throw fail(.outsideQuarantine) }
             do throws(EntryFailureReason) {
-                try applyOnDisk(operation, to: &entry)
+                try applyOnDisk(operation, to: &entry, in: batch)
             } catch {
                 if error == .missing {
                     entry.status = .missing
@@ -76,15 +75,20 @@ extension DefaultQuarantineService {
         return entry
     }
 
-    private func applyOnDisk(_ operation: Operation, to entry: inout QuarantineEntry) throws(EntryFailureReason) {
-        do {
-            _ = try FileSystemCalls.status(of: entry.quarantineURL)
-        } catch {
-            throw EntryFailureReason(errno: error.code)
+    private func applyOnDisk(
+        _ operation: Operation,
+        to entry: inout QuarantineEntry,
+        in batch: QuarantineBatch,
+    ) throws(EntryFailureReason) {
+        if operation == .restore, case let .denied(reason) = protectionPolicy.check(entry.originalURL) {
+            let path = entry.originalURL.storagePath
+            logger.error("Restore refused by protection (\(reason, privacy: .public)): \(path, privacy: .private)")
+            throw .protected
         }
+        let source = try verifiedQuarantineURL(entry, in: batch)
         switch operation {
-        case .trash: entry.trashURL = try trashFromDisk(entry.quarantineURL)
-        case .restore: try restoreOnDisk(entry)
+        case .trash: entry.trashURL = try trashFromDisk(source)
+        case .restore: try restoreOnDisk(source, to: entry.originalURL)
         }
     }
 
@@ -112,14 +116,16 @@ extension DefaultQuarantineService {
         }
     }
 
-    private func restoreOnDisk(_ entry: QuarantineEntry) throws(EntryFailureReason) {
-        let destination = entry.originalURL
+    private func restoreOnDisk(_ source: URL, to destination: URL) throws(EntryFailureReason) {
         if FileSystemCalls.exists(destination) {
             throw .destinationExists
         }
         do {
             try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try FileSystemCalls.renameExclusive(entry.quarantineURL, to: destination)
+            guard protectionPolicy.check(destination) == .allowed else { throw EntryFailureReason.protected }
+            try FileSystemCalls.renameExclusive(source, to: destination)
+        } catch let reason as EntryFailureReason {
+            throw reason
         } catch {
             throw FileSystemCalls.posixCode(of: error).map(EntryFailureReason.init(errno:)) ?? .unknown
         }

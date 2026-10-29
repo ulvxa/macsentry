@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import MacSentryCore
 
 struct AppServices: Sendable {
@@ -10,6 +10,8 @@ struct AppServices: Sendable {
     let ruleGroups: [String: String]
     let scanConfig: @Sendable ([URL]) -> ScanConfig
     let makeScanService: @Sendable (ScanPipelineOptions, ScanControl) -> any ScanService
+    var volume: (any VolumeSampler)?
+    var snapshots: (any LocalSnapshotChecker)?
 
     static func live(
         environment: AppEnvironment,
@@ -18,7 +20,13 @@ struct AppServices: Sendable {
         neverTouch: any NeverTouchStore,
         inventory: SystemAppInventory,
     ) -> AppServices {
-        let pipeline = ScanPipeline(environment: environment, database: database, protection: protection, inventory: inventory)
+        let pipeline = ScanPipeline(
+            environment: environment,
+            database: database,
+            protection: protection,
+            inventory: inventory,
+            applicationURL: { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) },
+        )
         return AppServices(
             candidates: GRDBCandidateStore(database: database),
             quarantine: DefaultQuarantineService(
@@ -34,6 +42,8 @@ struct AppServices: Sendable {
             ruleGroups: RuleGroups.bundled(),
             scanConfig: { pipeline.config(scanRoots: $0) },
             makeScanService: { pipeline.makeService(options: $0, control: $1) },
+            volume: SystemVolumeSampler(),
+            snapshots: TmutilLocalSnapshotChecker(),
         )
     }
 }

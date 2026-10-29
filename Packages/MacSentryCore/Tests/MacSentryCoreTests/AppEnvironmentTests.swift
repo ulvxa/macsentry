@@ -44,6 +44,25 @@ struct AppEnvironmentTests {
         #expect(empty.databasePathOverride == nil)
     }
 
+    @Test func `release builds ignore scan root and database overrides but keep dry run`() {
+        let environment = AppEnvironment(arguments: [
+            "MacSentry",
+            "-MacSentryScanRoot", "/tmp/fixture/home",
+            "-MacSentryDryRun", "YES",
+            "-MacSentryDatabasePath", "/tmp/macsentry-p0/x.sqlite",
+        ], realHomeURL: fakeHome, allowsDevelopmentOverrides: false)
+        #expect(environment.scanRoot == nil)
+        #expect(environment.databasePathOverride == nil)
+        #expect(environment.homeURL == fakeHome)
+        #expect(environment.databaseURL.path(percentEncoded: false)
+            == "/Users/tester/Library/Application Support/MacSentry/macsentry.sqlite")
+        #expect(environment.isDryRun)
+    }
+
+    @Test func `debug test builds honor development overrides by default`() {
+        #expect(AppEnvironment.allowsDevelopmentOverrides)
+    }
+
     @Test func `standardizes paths`() {
         let environment = AppEnvironment(arguments: ["app", "-MacSentryScanRoot", "/tmp/a/../b"], realHomeURL: fakeHome)
         #expect(environment.scanRoot?.path(percentEncoded: false) == "/tmp/b/")

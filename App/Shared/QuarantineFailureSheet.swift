@@ -93,6 +93,7 @@ extension EntryFailureReason {
         case .permissionDenied: "Permission denied"
         case .outsideQuarantine: "Outside the quarantine folder"
         case .dryRunMode: "Dry run"
+        case .protected: "Protected"
         case .unknown: "Unexpected error"
         }
     }

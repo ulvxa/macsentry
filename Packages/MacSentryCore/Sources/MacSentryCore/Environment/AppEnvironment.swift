@@ -11,15 +11,27 @@ public struct AppEnvironment: Sendable, Equatable {
     public let homeURL: URL
     public let databaseURL: URL
 
+    #if DEBUG
+        public static let allowsDevelopmentOverrides = true
+    #else
+        public static let allowsDevelopmentOverrides = false
+    #endif
+
     public init(
         arguments: [String] = ProcessInfo.processInfo.arguments,
         realHomeURL: URL = FileManager.default.homeDirectoryForCurrentUser,
+        allowsDevelopmentOverrides: Bool = AppEnvironment.allowsDevelopmentOverrides,
     ) {
         let values = Self.parse(arguments)
-        scanRoot = values[Self.scanRootArgument].map { URL(filePath: $0, directoryHint: .isDirectory).absoluteURL.standardizedFileURL }
         isDryRun = values[Self.dryRunArgument].map(Self.parseBool) ?? false
-        databasePathOverride = values[Self.databasePathArgument]
-            .map { URL(filePath: $0, directoryHint: .notDirectory).absoluteURL.standardizedFileURL }
+        if allowsDevelopmentOverrides {
+            scanRoot = values[Self.scanRootArgument].map { URL(filePath: $0, directoryHint: .isDirectory).absoluteURL.standardizedFileURL }
+            databasePathOverride = values[Self.databasePathArgument]
+                .map { URL(filePath: $0, directoryHint: .notDirectory).absoluteURL.standardizedFileURL }
+        } else {
+            scanRoot = nil
+            databasePathOverride = nil
+        }
         homeURL = scanRoot ?? realHomeURL
         databaseURL = databasePathOverride ?? realHomeURL.appending(
             path: "Library/Application Support/MacSentry/macsentry.sqlite",
