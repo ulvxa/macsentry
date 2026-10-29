@@ -13,8 +13,8 @@ public actor InMemoryCandidateStore: CandidateStore {
 
     private struct TotalsObserver {
         var session: Int64
-        var last: [Category: CategoryTotal]?
-        var continuation: AsyncThrowingStream<[Category: CategoryTotal], Error>.Continuation
+        var last: SessionTotals?
+        var continuation: AsyncThrowingStream<SessionTotals, Error>.Continuation
     }
 
     private var sessionRows: [ScanSession]
@@ -94,7 +94,30 @@ public actor InMemoryCandidateStore: CandidateStore {
     }
 
     public func totals(session: Int64) -> [Category: CategoryTotal] {
+        var totals: [Category: CategoryTotal] = [:]
+        for row in candidateRows where row.sessionID == session && row.status == .found {
+            var total = totals[row.category] ?? .zero
+            total.count += 1
+            total.freeable += row.freeableSize
+            totals[row.category] = total
+        }
+        return totals
+    }
+
+    public func actionTotals(session: Int64) -> SessionTotals {
         computeTotals(session: session)
+    }
+
+    public func total(session: Int64, filter: CandidateFilter) -> CategoryTotal {
+        let matches = query(session: session, filter: filter, sort: .default, limit: nil, offset: 0)
+        return CategoryTotal(count: matches.count, freeable: matches.reduce(0) { $0 + $1.freeableSize })
+    }
+
+    public func deleteSession(id: Int64) {
+        sessionRows.removeAll { $0.id == id }
+        candidateRows.removeAll { $0.sessionID == id }
+        dirNodeRows.removeAll { $0.sessionID == id }
+        notify()
     }
 
     public func topOffenders(session: Int64, category: Category, limit: Int) -> [Candidate] {
@@ -135,7 +158,7 @@ public actor InMemoryCandidateStore: CandidateStore {
     }
 
     // swiftlint:disable:next modifier_order
-    public nonisolated func observeTotals(session: Int64) -> AsyncThrowingStream<[Category: CategoryTotal], Error> {
+    public nonisolated func observeActionTotals(session: Int64) -> AsyncThrowingStream<SessionTotals, Error> {
         AsyncThrowingStream { continuation in
             let id = UUID()
             Task {
@@ -248,13 +271,10 @@ public actor InMemoryCandidateStore: CandidateStore {
         return Array(tail.prefix(max(limit, 0)))
     }
 
-    private func computeTotals(session: Int64) -> [Category: CategoryTotal] {
-        var totals: [Category: CategoryTotal] = [:]
+    private func computeTotals(session: Int64) -> SessionTotals {
+        var totals = SessionTotals()
         for row in candidateRows where row.sessionID == session && row.status == .found {
-            var total = totals[row.category] ?? .zero
-            total.count += 1
-            total.freeable += row.freeableSize
-            totals[row.category] = total
+            totals.add(CategoryTotal(count: 1, freeable: row.freeableSize), category: row.category, action: row.action)
         }
         return totals
     }
@@ -262,18 +282,10 @@ public actor InMemoryCandidateStore: CandidateStore {
 
 extension CandidateFilter {
     func matches(_ candidate: Candidate, now: Date) -> Bool {
-        if !categories.isEmpty, !categories.contains(candidate.category) {
-            return false
-        }
-        if !tiers.isEmpty, !tiers.contains(candidate.tier) {
-            return false
-        }
-        if !statuses.isEmpty, !statuses.contains(candidate.status) {
-            return false
-        }
-        if candidate.freeableSize < minFreeable {
-            return false
-        }
+        guard Self.allows(categories, candidate.category), Self.allows(tiers, candidate.tier),
+              Self.allows(actions, candidate.action), Self.allows(statuses, candidate.status),
+              candidate.freeableSize >= minFreeable
+        else { return false }
         if let minAgeDays {
             let cutoff = now.addingTimeInterval(-Double(minAgeDays) * 86400)
             let date = switch ageBasis {
@@ -288,6 +300,10 @@ extension CandidateFilter {
             return false
         }
         return true
+    }
+
+    private static func allows<Value: Hashable>(_ allowed: Set<Value>, _ value: Value) -> Bool {
+        allowed.isEmpty || allowed.contains(value)
     }
 }
 

@@ -84,6 +84,15 @@ extension SidebarItem {
         }
     }
 
+    /// Flagged gathers flag only rows of every category; every other item counts only quarantinable rows.
+    var scope: CandidateFilter? {
+        switch self {
+        case .overview, .quarantine: nil
+        case .flagged: CandidateFilter(actions: [.flagOnly])
+        default: CandidateFilter(categories: categories, actions: [.quarantine])
+        }
+    }
+
     var showsToolbarScan: Bool {
         self != .overview
     }

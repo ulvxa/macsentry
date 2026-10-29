@@ -13,6 +13,7 @@ enum MenuBarScanStatus: Equatable {
     case unavailable
     case idle
     case scanning(files: Int?)
+    case cancelling
 }
 
 @Observable
@@ -32,18 +33,15 @@ final class MenuBarModel {
         self.loginItem = loginItem
     }
 
-    convenience init(settings: SettingsModel) {
-        let underTest = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-        let notifier: any LowSpaceNotifier = underTest ? SilentLowSpaceNotifier() : SystemLowSpaceNotifier()
+    convenience init(settings: SettingsModel, notifier: any LowSpaceNotifier) {
         self.init(
             pressure: DiskPressureController(store: settings.store, notifier: notifier),
             loginItem: LoginItemController(mirror: { settings.launchAtLogin = $0 }),
         )
     }
 
-    func attach(database: Database, environment: AppEnvironment, protection: ProtectionPolicyProvider?) async {
-        totalsLoader = Self.makeTotalsLoader(database: database, environment: environment, protection: protection)
-        await pressure.attach(database: database)
+    func attach(services: AppServices) async {
+        totalsLoader = Self.makeTotalsLoader(services)
         await refreshTotals()
     }
 
@@ -61,30 +59,18 @@ final class MenuBarModel {
         NSApp.activate()
     }
 
-    private static func makeTotalsLoader(
-        database: Database,
-        environment: AppEnvironment,
-        protection: ProtectionPolicyProvider?,
-    ) -> @Sendable () async -> MenuBarTotals {
-        let candidates = GRDBCandidateStore(database: database)
-        let quarantine = protection.map {
-            DefaultQuarantineService(
-                environment: environment,
-                database: database,
-                protectionPolicy: $0,
-                appInventory: SystemAppInventory.standard(homeURL: environment.homeURL),
-                sizeCalculator: DefaultSizeCalculator(),
-            )
-        }
+    private static func makeTotalsLoader(_ services: AppServices) -> @Sendable () async -> MenuBarTotals {
+        let candidates = services.candidates
+        let quarantine = services.quarantine
         return {
             var totals = MenuBarTotals()
-            if let quarantineTotals = try? await quarantine?.totals() {
+            if let quarantineTotals = try? await quarantine.totals() {
                 totals.inQuarantine = quarantineTotals.inQuarantine
                 totals.inTrash = quarantineTotals.inTrash
             }
             if let session = try? await candidates.latestFinishedSession(), let id = session.id,
-               let byCategory = try? await candidates.totals(session: id) {
-                totals.reclaimable = byCategory.filter { $0.key != .flagged }.values.reduce(0) { $0 + $1.freeable }
+               let sessionTotals = try? await candidates.actionTotals(session: id) {
+                totals.reclaimable = sessionTotals.reclaimable.freeable
             }
             return totals
         }

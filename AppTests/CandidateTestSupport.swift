@@ -44,6 +44,26 @@ struct HangingScanService: ScanService {
     }
 }
 
+struct SlowCancelScanService: ScanService {
+    let sessionID: Int64
+    let control: ScanControl
+    let release: TickGate
+
+    func scan(config _: ScanConfig) -> AsyncThrowingStream<ScanEvent, Error> {
+        let (stream, continuation) = AsyncThrowingStream.makeStream(of: ScanEvent.self, throwing: Error.self)
+        continuation.yield(.started(sessionID: sessionID))
+        continuation.yield(.progress(filesVisited: 7, bytesVisited: 700, currentPath: "/fixture/a"))
+        let release = release
+        control.attachCancel {
+            Task {
+                try? await release.wait()
+                continuation.finish()
+            }
+        }
+        return stream
+    }
+}
+
 @MainActor
 struct CandidateHarness {
     let fixture: FixtureBuilder
@@ -65,13 +85,13 @@ struct CandidateHarness {
         fixture = try FixtureBuilder(name: name)
         let settings = try SettingsStore(defaults: fixture.isolatedDefaults(), homeURL: fixture.root)
         configure(settings)
-        app = try AppModel(environment: fixture.environment(), settingsStore: settings)
+        app = try AppModel(environment: fixture.environment(), settingsStore: settings, notifier: SilentLowSpaceNotifier())
         store = InMemoryCandidateStore(
             sessions: sessions ?? [ScanSession(id: 1, startedAt: Date(), finishedAt: Date(), status: .finished, roots: [fixture.root])],
             candidates: candidates,
             duplicateGroups: duplicateGroups,
         )
-        quarantine = TestQuarantineService()
+        quarantine = TestQuarantineService(candidates: store)
         scans = controlledScan.map { ScanServiceFactory(controlled: $0) } ?? ScanServiceFactory(scan)
         let root = fixture.root
         let scans = scans

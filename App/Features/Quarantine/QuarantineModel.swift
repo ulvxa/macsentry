@@ -255,7 +255,9 @@ final class QuarantineModel {
     }
 
     func openTrash() {
-        NSWorkspace.shared.open(app.environment.homeURL.appending(path: ".Trash", directoryHint: .isDirectory))
+        guard let trash = try? FileManager.default.url(for: .trashDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+        else { return }
+        NSWorkspace.shared.open(trash)
     }
 
     var previewURLs: [URL] {

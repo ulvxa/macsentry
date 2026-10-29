@@ -24,12 +24,12 @@ struct CandidateStoreMutationTests {
     @Test(arguments: StoreBackend.allCases)
     func `totals observation reflects status changes`(backend: StoreBackend) async throws {
         let (store, _) = try makeStore(backend)
-        var iterator = store.observeTotals(session: 1).makeAsyncIterator()
+        var iterator = store.observeActionTotals(session: 1).makeAsyncIterator()
         let first = try await iterator.next()
-        #expect(first?[.oldLarge] == CategoryTotal(count: 2, freeable: 9050))
+        #expect(first?.total(categories: [.oldLarge]) == CategoryTotal(count: 2, freeable: 9050))
         try await store.setStatus(.trashed, ids: [3])
         let second = try await iterator.next()
-        #expect(second?[.oldLarge] == CategoryTotal(count: 1, freeable: 50))
+        #expect(second?.total(categories: [.oldLarge]) == CategoryTotal(count: 1, freeable: 50))
     }
 
     @Test(arguments: StoreBackend.allCases)

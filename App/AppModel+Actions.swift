@@ -21,12 +21,14 @@ extension AppModel {
 
     func quarantine(_ candidates: [Candidate]) async -> QuarantineResult? {
         let eligible = candidates.filter { $0.status == .found }
-        guard let services, !eligible.isEmpty, quarantineBlockReason(for: eligible) == nil else { return nil }
+        guard let services, !eligible.isEmpty else { return nil }
+        if let reason = quarantineBlockReason(for: eligible) {
+            toast = Toast(kind: .message("Nothing was quarantined. \(reason)"))
+            return nil
+        }
         isQuarantining = true
         defer { isQuarantining = false }
         let result = await services.quarantine.quarantine(eligible)
-        let movedIDs = result.moved.compactMap(\.candidateID)
-        try? await services.candidates.setStatus(.quarantined, ids: movedIDs)
         await refreshQuarantineTotals()
         await menuBar.refreshTotals()
         if !result.moved.isEmpty {

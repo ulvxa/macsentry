@@ -7,6 +7,7 @@ struct CandidateListConfiguration {
     var groupsByRule = false
     var defaultCheckedTiers: Set<Tier> = [.green]
     var collapsedByDefault: Set<String> = []
+    var groupCheckDisabled: Set<String> = []
     var controls: [FilterControl] = FilterControl.listControls
     var isCheckable = true
     var emptyTitle = "Nothing here above your thresholds"
@@ -29,21 +30,7 @@ struct CandidateListConfiguration {
             .orphans
         case .flagged:
             .flagged
-        case .projects:
-            CandidateListConfiguration(
-                item: item,
-                categories: [.projectArtifact],
-                noScanSubject: "idle projects",
-            )
-        case .duplicates:
-            CandidateListConfiguration(
-                item: item,
-                categories: [.duplicate],
-                defaultCheckedTiers: [],
-                controls: [.size(label: "Reclaimable at least")],
-                noScanSubject: "duplicate files",
-            )
-        case .overview, .quarantine:
+        case .overview, .projects, .duplicates, .quarantine:
             CandidateListConfiguration(item: item, categories: [], noScanSubject: item.title.lowercased())
         }
     }
@@ -57,6 +44,7 @@ extension CandidateListConfiguration {
             actions: [.quarantine, .flagOnly],
             defaultCheckedTiers: [],
             collapsedByDefault: [Confidence.low.sectionTitle],
+            groupCheckDisabled: [Confidence.low.sectionTitle],
             emptyTitle: "No leftovers found",
             emptyMessage: "Nothing in your Library looks orphaned.",
             noScanSubject: "leftover app files",
@@ -66,7 +54,7 @@ extension CandidateListConfiguration {
     private static var flagged: CandidateListConfiguration {
         CandidateListConfiguration(
             item: .flagged,
-            categories: [.flagged, .orphan],
+            categories: [],
             actions: [.flagOnly],
             groupsByRule: true,
             defaultCheckedTiers: [],
@@ -79,7 +67,7 @@ extension CandidateListConfiguration {
     }
 
     var usesThresholdFilters: Bool {
-        [.oldLarge, .projects, .duplicates].contains(item)
+        item == .oldLarge
     }
 
     func defaultFilter(thresholds: Thresholds) -> FilterState {

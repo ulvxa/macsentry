@@ -44,7 +44,7 @@ final class AppModel {
     private(set) var latestFinishedSession: ScanSession?
     private(set) var previousFinishedSession: ScanSession?
     var runningSessionID: Int64?
-    private(set) var totals: [MacSentryCore.Category: CategoryTotal] = [:]
+    private(set) var totals = SessionTotals.empty
     private(set) var totalsLoaded = false
     private(set) var quarantineTotals: QuarantineTotals?
     private(set) var reconcileReport: ReconcileReport?
@@ -74,13 +74,14 @@ final class AppModel {
         environment: AppEnvironment = AppEnvironment(),
         settingsStore: SettingsStore? = nil,
         permissions: (any PermissionService)? = nil,
+        notifier: any LowSpaceNotifier = SystemLowSpaceNotifier(),
     ) {
         self.environment = environment
         settings = SettingsModel(store: settingsStore ?? SettingsStore(homeURL: environment.homeURL))
         self.permissions = permissions ?? SystemPermissionService(homeURL: environment.homeURL) { url in
             Task { @MainActor in NSWorkspace.shared.open(url) }
         }
-        menuBar = MenuBarModel(settings: settings)
+        menuBar = MenuBarModel(settings: settings, notifier: notifier)
         refreshPermissions()
         connectMenuBar()
     }
@@ -88,6 +89,9 @@ final class AppModel {
     private func connectMenuBar() {
         menuBar.scanStatus = { [weak self] in
             guard let self, isReady else { return .unavailable }
+            if isCancellingScan {
+                return .cancelling
+            }
             return scanActivity.map { .scanning(files: $0.filesVisited) } ?? .idle
         }
         menuBar.startScan = { [weak self] in self?.startScan() }
@@ -134,7 +138,7 @@ final class AppModel {
                 neverTouch: store,
                 inventory: inventory,
             ))
-            await menuBar.attach(database: opened, environment: environment, protection: provider)
+            await menuBar.pressure.attach(database: opened)
             if let backup = opened.corruptBackupURL {
                 alert = AppAlert(
                     title: "Database Was Reset",
@@ -162,6 +166,7 @@ final class AppModel {
         }
         await refreshQuarantineTotals()
         await refreshLocalSnapshots()
+        await menuBar.attach(services: services)
     }
 
     private func attachProtection(
@@ -194,13 +199,8 @@ final class AppModel {
     }
 
     func total(for item: SidebarItem) -> CategoryTotal? {
-        guard currentSessionID != nil else { return nil }
-        let categories = item.categories
-        guard !categories.isEmpty else { return nil }
-        return categories.reduce(CategoryTotal.zero) { sum, category in
-            let value = totals[category] ?? .zero
-            return CategoryTotal(count: sum.count + value.count, freeable: sum.freeable + value.freeable)
-        }
+        guard currentSessionID != nil, let scope = item.scope else { return nil }
+        return totals.total(categories: scope.categories, actions: scope.actions)
     }
 
     func badgeBytes(for item: SidebarItem) -> Int64? {
@@ -223,8 +223,10 @@ final class AppModel {
     }
 
     func reloadSessions(preferring sessionID: Int64?) async {
-        guard let store = services?.candidates else { return }
-        let finished = await ((try? store.sessions(limit: DefaultScanService.retainedSessions)) ?? []).filter { $0.status == .finished }
+        guard let store = services?.candidates,
+              let sessions = try? await store.sessions(limit: DefaultScanService.retainedSessions + 1)
+        else { return }
+        let finished = sessions.filter { $0.status == .finished }
         latestFinishedSession = finished.first
         previousFinishedSession = finished.dropFirst().first
         setCurrentSession(sessionID ?? finished.first?.id)
@@ -235,17 +237,17 @@ final class AppModel {
         currentSessionID = sessionID
         totalsTask?.cancel()
         totalsTask = nil
-        totals = [:]
+        totals = .empty
         totalsLoaded = false
         guard let sessionID, let store = services?.candidates else { return }
         totalsTask = Task { [weak self] in
             do {
-                for try await value in store.observeTotals(session: sessionID) {
+                for try await value in store.observeActionTotals(session: sessionID) {
                     self?.totals = value
                     self?.totalsLoaded = true
                 }
             } catch {
-                self?.totals = [:]
+                self?.totals = .empty
                 self?.totalsLoaded = true
             }
         }

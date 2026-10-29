@@ -15,6 +15,7 @@ struct OnboardingTests {
             environment: fixture.environment(),
             settingsStore: store,
             permissions: permissions,
+            notifier: SilentLowSpaceNotifier(),
         )
         return (model, permissions)
     }

@@ -27,6 +27,33 @@ struct ScanSessionTests {
         #expect(nodeSessions == Set(ids.suffix(5)))
     }
 
+    @Test func `four cancelled scans keep the finished one`() async throws {
+        let fixture = try FixtureBuilder(name: "ScanRetentionFinished")
+        try fixture.file("a/b.bin", size: 10)
+        let database = try Database.inMemory()
+        let service = ScanTest.service(database)
+        let scan = { try await #require(ScanTest.summary(ScanTest.collect(service.scan(config: ScanConfig(roots: [fixture.root]))))) }
+        let finished = try await scan().sessionID
+        let cancelled = try await database.writer.write { db in
+            try (0 ..< 4).map { _ in
+                var session = ScanSession(startedAt: Date(), finishedAt: Date(), status: .cancelled, roots: [fixture.root])
+                try session.insert(db)
+                return try #require(session.id)
+            }
+        }
+        let allIDs = { try await database.writer.read { db in try ScanSession.order(Column("id")).fetchAll(db).compactMap(\.id) } }
+
+        let next = try await scan().sessionID
+        #expect(try await allIDs() == [finished] + cancelled + [next])
+        let store = GRDBCandidateStore(database: database)
+        #expect(try await store.latestFinishedSession()?.id == next)
+
+        let last = try await scan().sessionID
+        let remaining = try await allIDs()
+        #expect(remaining == cancelled.suffix(3) + [next, last])
+        #expect(remaining.count <= DefaultScanService.retainedSessions + 1)
+    }
+
     @Test func `candidates are written in batches of 500 per transaction`() async throws {
         let fixture = try FixtureBuilder(name: "ScanBatches")
         let folder = try fixture.folder("many")
@@ -139,6 +166,31 @@ struct ScanSessionTests {
         }
         #expect(partial.0 > 0)
         #expect(partial.1 > 0)
+    }
+
+    @Test func `control cancel ends the stream only after the session is saved as cancelled`() async throws {
+        let fixture = try FixtureBuilder(name: "ScanControlCancel")
+        for index in 0 ..< 400 {
+            try fixture.file("d\(index % 4)/f\(index)", size: 1)
+        }
+        let database = try Database.inMemory()
+        let control = ScanControl()
+        let handler = RecordingHandler(delay: .milliseconds(5))
+        let service = DefaultScanService(database: database, lastUsedResolver: FixedLastUsedResolver(), control: control) { _ in [handler] }
+        let consumer = Task {
+            var events: [ScanEvent] = []
+            for try await event in service.scan(config: ScanConfig(roots: [fixture.root], maxConcurrency: 2)) {
+                events.append(event)
+                if handler.entries.count >= 20, !control.isCancelled {
+                    #expect(control.cancel())
+                }
+            }
+            return try await (events, database.writer.read { try ScanSession.fetchOne($0)?.status })
+        }
+        let (events, status) = try await consumer.value
+        #expect(status == .cancelled)
+        #expect(ScanTest.summary(events) == nil)
+        #expect(handler.entries.count < 400)
     }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["MACSENTRY_PERF"] == "1"))

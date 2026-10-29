@@ -60,7 +60,7 @@ struct OverviewEndToEndTests {
         let environment = try fixture.environment()
         let settings = try SettingsStore(defaults: fixture.isolatedDefaults(), homeURL: fixture.root)
         settings.thresholds = Thresholds(minAgeDays: 180, minSize: 5 * Self.megabyte, ageBasis: .modified)
-        let app = AppModel(environment: environment, settingsStore: settings)
+        let app = AppModel(environment: environment, settingsStore: settings, notifier: SilentLowSpaceNotifier())
 
         let database = try Database.inMemory()
         let installed = InstalledApp(

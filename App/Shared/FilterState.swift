@@ -24,6 +24,7 @@ struct FilterState: Equatable {
 
     func candidateFilter(
         categories: Set<MacSentryCore.Category>,
+        actions: Set<CandidateAction> = [],
         controls: [FilterControl],
         ageBasis: AgeBasis,
     ) -> CandidateFilter {
@@ -46,6 +47,7 @@ struct FilterState: Equatable {
         return CandidateFilter(
             categories: categories,
             tiers: usesTiers && tiers.count < Tier.allCases.count ? tiers : [],
+            actions: actions,
             minFreeable: usesSize ? minSizeBytes : 0,
             minAgeDays: usesAge && minAgeDays > 0 ? minAgeDays : nil,
             ageBasis: ageBasis,

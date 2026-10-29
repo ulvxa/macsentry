@@ -64,6 +64,53 @@ struct AppModelScanTests {
         #expect(app.canStartScan)
     }
 
+    @Test func `cancel waits for the old scan to end before another can start`() async throws {
+        let release = TickGate()
+        let harness = try await CandidateHarness(name: "ScanCancelling", controlledScan: { control in
+            SlowCancelScanService(sessionID: 2, control: control, release: release)
+        })
+        let app = harness.app
+        app.startScan()
+        #expect(await eventually { app.scanActivity?.filesVisited == 7 })
+
+        app.cancelScan()
+        #expect(app.isCancellingScan)
+        #expect(!app.isScanning)
+        #expect(!app.canStartScan)
+        #expect(app.statusOverlayKind == 1)
+        #expect(app.menuBar.scanStatus() == .cancelling)
+        app.startScan()
+        #expect(harness.scans.options.count == 1)
+
+        await release.tick()
+        await app.waitForScan()
+        #expect(app.scanState == .cancelled)
+        #expect(app.canStartScan)
+        #expect(app.toast?.kind == .scanCancelled(hasPreviousResults: true))
+        app.startScan()
+        #expect(harness.scans.options.count == 2)
+        app.cancelScan()
+        await release.tick()
+        await app.waitForScan()
+    }
+
+    @Test func `a session removed by retention is dropped when the next scan starts`() async throws {
+        let harness = try await CandidateHarness(name: "ScanVanished", sessions: [
+            ScanSession(id: 1, startedAt: Date(), finishedAt: Date(), status: .finished, roots: []),
+            ScanSession(id: 2, startedAt: Date(), finishedAt: Date(), status: .finished, roots: []),
+        ]) { HangingScanService(sessionID: 3) }
+        let app = harness.app
+        #expect(app.currentSessionID == 2)
+        await harness.store.deleteSession(id: 2)
+
+        app.startScan()
+        #expect(await eventually { app.currentSessionID == 1 })
+        #expect(app.latestFinishedSession?.id == 1)
+        app.cancelScan()
+        await app.waitForScan()
+        #expect(app.currentSessionID == 1)
+    }
+
     @Test func `scan failure surfaces the error`() async throws {
         let harness = try await CandidateHarness(name: "ScanFail") {
             StubScanService(events: [.started(sessionID: 2)], error: .persistence("disk full"))
@@ -88,11 +135,29 @@ struct AppModelScanTests {
 
         #expect(app.quarantineBlockReason(for: [running]) == "Wait for the scan to finish")
         #expect(await app.quarantine([running]) == nil)
+        #expect(app.toast?.kind == .message("Nothing was quarantined. Wait for the scan to finish"))
         #expect(app.quarantineBlockReason(for: [previous]) == nil)
         let result = try #require(await app.quarantine([previous]))
         #expect(result.moved.count == 1)
         #expect(await harness.quarantine.quarantineCalls.map { $0.compactMap(\.id) } == [[1]])
         app.cancelScan()
+    }
+
+    @Test func `a confirm sheet left open across a session change explains why nothing moved`() async throws {
+        let harness = try await CandidateHarness(name: "ListStaleConfirm", candidates: [CandidateHarness.candidate(id: 1, name: "One")])
+        let model = harness.list(.devCaches)
+        #expect(await eventually { model.checkedIDs == [1] })
+        model.requestQuarantine()
+        let confirmation = try #require(model.confirmation)
+        #expect(confirmation.destination == harness.app.quarantineFolderDisplay)
+        #expect(confirmation.message
+            .hasSuffix("moves to ~/\(DefaultQuarantineService.folderName). Nothing is deleted, and you can restore it."))
+
+        await harness.app.reloadSessions(preferring: 2)
+        await model.confirm(confirmation)
+        #expect(await harness.quarantine.quarantineCalls.isEmpty)
+        let reason = try #require(harness.app.quarantineBlockReason(for: confirmation.candidates))
+        #expect(harness.app.toast?.kind == .message("Nothing was quarantined. \(reason)"))
     }
 
     @Test func `scan options come from settings`() async throws {
@@ -123,6 +188,42 @@ struct AppModelScanTests {
         #expect(app.total(for: .devCaches)?.count == 2)
         #expect(app.badgeBytes(for: .overview) == nil)
         #expect(app.badgeBytes(for: .quarantine) == nil)
+    }
+
+    @Test func `flag only rows count under Flagged and never as reclaimable`() async throws {
+        let gigabyte: Int64 = 1_000_000_000
+        let harness = try await CandidateHarness(name: "ScanActionTotals", candidates: [
+            CandidateHarness.candidate(id: 1, name: "DerivedData", size: 2 * gigabyte),
+            CandidateHarness.candidate(id: 2, name: "Leftover", category: .orphan, ruleID: "orphan.caches", size: gigabyte),
+            CandidateHarness.candidate(
+                id: 3, name: "agent.plist", category: .orphan, ruleID: "orphan.launchAgents", action: .flagOnly, size: 3 * gigabyte,
+            ),
+            CandidateHarness.candidate(
+                id: 4,
+                name: "Docker.raw",
+                category: .flagged,
+                ruleID: "docker.raw",
+                action: .flagOnly,
+                size: 4 * gigabyte,
+            ),
+            CandidateHarness.candidate(id: 5, name: "RootOwned", action: .flagOnly, size: 5 * gigabyte),
+        ])
+        let app = harness.app
+        #expect(await eventually { app.totalsLoaded })
+        #expect(app.badgeBytes(for: .devCaches) == 2 * gigabyte)
+        #expect(app.badgeBytes(for: .orphans) == gigabyte)
+        #expect(app.total(for: .flagged) == CategoryTotal(count: 3, freeable: 12 * gigabyte))
+        #expect(app.reclaimableBytes == 3 * gigabyte)
+        #expect(app.menuBar.totals.reclaimable == 3 * gigabyte)
+
+        let flagged = harness.list(.flagged)
+        #expect(await eventually { flagged.candidates.compactMap(\.id) == [5, 4, 3] })
+        let overview = OverviewModel(app: app)
+        await overview.activate()
+        await overview.waitForOffenders()
+        #expect(overview.cards.first { $0.item == .flagged }?.total.count == 3)
+        #expect(overview.cards.first { $0.item == .flagged }?.offenders.map(\.id) == [5, 4, 3])
+        #expect(overview.cards.first { $0.item == .orphans }?.offenders.map(\.id) == [2])
     }
 
     @Test func `no badges and no session before the first scan`() async throws {

@@ -72,7 +72,7 @@ private struct ScanHUD: View {
                 .controlSize(.small)
             VStack(alignment: .leading, spacing: Space.xs) {
                 HStack(spacing: 0) {
-                    Text(activity.phaseTitle)
+                    Text(model.isCancellingScan ? "Cancelling…" : activity.phaseTitle)
                         .font(.callout.weight(.medium))
                         .monospacedDigit()
                     Text(activity.phaseDetail)
@@ -90,24 +90,26 @@ private struct ScanHUD: View {
             .contentTransition(.identity)
             .transaction { $0.animation = nil }
             .frame(maxWidth: .infinity, alignment: .leading)
-            if activity.isHashingDuplicates, !activity.duplicatesSkipped {
-                Button("Skip Duplicates") { model.skipDuplicates() }
+            if !model.isCancellingScan {
+                if activity.isHashingDuplicates, !activity.duplicatesSkipped {
+                    Button("Skip Duplicates") { model.skipDuplicates() }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.capsule)
+                        .controlSize(.small)
+                        .help("Stop looking for duplicate files and finish the rest of the scan")
+                }
+                Button("Cancel") { model.cancelScan() }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.capsule)
                     .controlSize(.small)
-                    .help("Stop looking for duplicate files and finish the rest of the scan")
+                    .keyboardShortcut(.cancelAction)
             }
-            Button("Cancel") { model.cancelScan() }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.capsule)
-                .controlSize(.small)
-                .keyboardShortcut(.cancelAction)
         }
         .padding(.horizontal, Space.l)
         .padding(.vertical, Space.m)
         .frame(width: 520)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Scan in progress")
+        .accessibilityLabel(model.isCancellingScan ? "Cancelling scan" : "Scan in progress")
     }
 }
 

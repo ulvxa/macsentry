@@ -9,8 +9,9 @@ extension DefaultQuarantineService {
             self == .trash ? .trashed : .restored
         }
 
+        /// A restored item is back on disk and reclaimable again, so its row returns to found.
         var candidateStatus: CandidateStatus {
-            self == .trash ? .trashed : .restored
+            self == .trash ? .trashed : .found
         }
     }
 
