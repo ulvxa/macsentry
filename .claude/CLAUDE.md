@@ -44,5 +44,6 @@ Native macOS 26 disk cleanup app. Finds reclaimable files, moves them to a quara
 - Phase 6 done: graveyard + Projects screen (artifact checkboxes, idle-days override, IDE block, inspector)
 - Safety review fixed: provider denies all until first `refresh()`, release builds ignore `-MacSentryScanRoot`/`-MacSentryDatabasePath`
 - Phase 4 done: Overview (hero, disk bar via `DiskUsageBreakdown`, glass cards, treemap, snapshot caveat), lists, inspector, HUD, Flagged; caches/orphans lists start unfiltered, Old and Large uses Settings thresholds
-- In progress: P7 Orphans/Duplicates screens (core done, `ScanControl.skipDuplicates()`)
+- Phase 7 done: Orphans screen (High/Medium/Low, never preselected, "still installed" → never touch), Duplicates screen (keeper radio, clone label, can't quarantine every copy), HUD hashing progress + Skip Duplicates via per-scan `ScanControl`
+- Phase 9: read-only real dry-run scan analysis in progress; owner must do the real quarantine → trash → empty Trash check
 - Phase 8 done (pending manual panel check): `MenuBarExtra` + `MenuBarModel` (scan hooks are closures set by AppModel), `AppDelegate` keeps app alive, `DiskMonitor` 15 min samples, `LowSpaceNotifier`, `LoginItemService` (SMAppService), Settings Profiles/Projects/Duplicates/Notifications tabs
