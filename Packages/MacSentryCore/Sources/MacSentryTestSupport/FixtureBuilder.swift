@@ -5,6 +5,7 @@ public struct FixtureBuilder: Sendable {
     public let root: URL
 
     public init(name: String = "Fixture") throws {
+        FixtureSweeper.sweepOnce
         let base = FileManager.default.temporaryDirectory
             .appending(path: "MacSentryFixtures", directoryHint: .isDirectory)
             .appending(path: "\(name)-\(UUID().uuidString)", directoryHint: .isDirectory)
