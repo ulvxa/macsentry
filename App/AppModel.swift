@@ -46,6 +46,7 @@ final class AppModel {
     var runningSessionID: Int64?
     private(set) var totals: [MacSentryCore.Category: CategoryTotal] = [:]
     private(set) var quarantineTotals: QuarantineTotals?
+    private(set) var reconcileReport: ReconcileReport?
     var isQuarantining = false
     var toast: Toast?
     var unreadableReport: UnreadableReport?
@@ -146,7 +147,11 @@ final class AppModel {
         self.services = services
         await reloadSessions(preferring: nil)
         do {
-            try await services.quarantine.reconcile()
+            if let service = services.quarantine as? DefaultQuarantineService {
+                reconcileReport = try await service.reconcileWithReport()
+            } else {
+                try await services.quarantine.reconcile()
+            }
         } catch {
             alert = AppAlert(title: "Quarantine Check Failed", message: error.localizedDescription)
         }
