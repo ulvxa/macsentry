@@ -1,5 +1,5 @@
 --swiftversion 6.2
---exclude .build,DerivedData,**/.build,*.xcodeproj,MacSentry.xcodeproj
+--exclude .claude/worktrees,.build,DerivedData,**/.build,*.xcodeproj,MacSentry.xcodeproj
 --indent 4
 --maxwidth 140
 --wraparguments before-first
