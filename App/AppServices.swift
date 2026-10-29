@@ -57,7 +57,7 @@ enum RuleGroups {
         for rule in (try? RuleCatalog.bundled().rules) ?? [] {
             groups[rule.id] = rule.group
         }
-        for rule in [OldLargeRule.rule, OldLargeRule.installerRule] {
+        for rule in OldLargeRule.rules {
             groups[rule.id] = rule.group
         }
         return groups

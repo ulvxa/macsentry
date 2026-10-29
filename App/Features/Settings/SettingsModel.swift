@@ -15,6 +15,10 @@ final class SettingsModel {
         didSet { store.minSizeBytes = minSizeBytes }
     }
 
+    var largeFileMinSizeBytes: Int64 {
+        didSet { store.largeFileMinSizeBytes = largeFileMinSizeBytes }
+    }
+
     var ageBasis: AgeBasis {
         didSet { store.ageBasis = ageBasis }
     }
@@ -67,6 +71,7 @@ final class SettingsModel {
         self.store = store
         minAgeDays = store.minAgeDays
         minSizeBytes = store.minSizeBytes
+        largeFileMinSizeBytes = store.largeFileMinSizeBytes
         ageBasis = store.ageBasis
         scanRoots = store.scanRoots
         menuBarEnabled = store.menuBarEnabled
@@ -84,7 +89,12 @@ final class SettingsModel {
     static let defaultDuplicateFolders = ["Downloads", "Desktop", "Documents", "Movies", "Pictures", "Music"]
 
     var thresholds: Thresholds {
-        Thresholds(minAgeDays: minAgeDays, minSize: minSizeBytes, ageBasis: ageBasis)
+        Thresholds(
+            minAgeDays: minAgeDays,
+            minSize: minSizeBytes,
+            ageBasis: ageBasis,
+            largeFileMinSize: largeFileMinSizeBytes,
+        )
     }
 
     func addScanRoots(_ urls: [URL]) {

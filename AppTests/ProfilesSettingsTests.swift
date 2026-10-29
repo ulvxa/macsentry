@@ -18,13 +18,13 @@ struct ProfilesSettingsTests {
 
         let rows = model.rows
         #expect(rows.first?.group == "Xcode")
-        #expect(rows.first?.subtitle == "Xcode 26.3 · 9 rules")
+        #expect(rows.first?.subtitle == "Xcode 26.3 · 10 rules")
         let docker = try #require(rows.first { $0.group == "Docker" })
         #expect(docker.kind == .notInstalled)
         #expect(docker.subtitle.contains("Not installed"))
         let node = try #require(rows.first { $0.group == "Node" })
         #expect(node.kind == .tool)
-        #expect(node.subtitle == "4 rules")
+        #expect(node.subtitle == "7 rules")
         let kinds = rows.map(\.kind.rawValue)
         #expect(kinds == kinds.sorted())
     }

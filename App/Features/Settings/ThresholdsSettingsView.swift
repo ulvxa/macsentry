@@ -8,6 +8,7 @@ struct ThresholdsSettingsView: View {
     @State private var preview = ThresholdPreviewModel()
     @State private var ageDraft: Double?
     @State private var sizeDraft: Double?
+    @State private var largeDraft: Double?
 
     var body: some View {
         @Bindable var settings = model.settings
@@ -60,6 +61,41 @@ struct ThresholdsSettingsView: View {
                     Text("50 GB")
                 }
                 .labelsHidden()
+            }
+
+            Section {
+                Toggle("List large files of any age", isOn: Binding(
+                    get: { settings.largeFileMinSizeBytes > 0 },
+                    set: { settings.largeFileMinSizeBytes = $0 ? Thresholds.defaultLargeFileMinSize : 0 },
+                ))
+                if settings.largeFileMinSizeBytes > 0 {
+                    LabeledContent("Larger than") {
+                        Text((largeDraft.map(LogSizeScale.bytes(at:)) ?? settings.largeFileMinSizeBytes)
+                            .formatted(.byteCount(style: .file)))
+                            .monospacedDigit()
+                    }
+                    DraftSlider(
+                        value: Binding(
+                            get: { LogSizeScale.position(for: settings.largeFileMinSizeBytes) },
+                            set: { settings.largeFileMinSizeBytes = LogSizeScale.bytes(at: $0) },
+                        ),
+                        draft: $largeDraft,
+                        in: 0 ... 1,
+                    ) {
+                        Text("Large file size")
+                    } minimumValueLabel: {
+                        Text("10 MB")
+                    } maximumValueLabel: {
+                        Text("50 GB")
+                    }
+                    .labelsHidden()
+                }
+            } header: {
+                Text("Large Files")
+            } footer: {
+                Text("Shown in Old and Large for review, never preselected.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section {
