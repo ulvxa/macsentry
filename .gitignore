@@ -7,3 +7,4 @@ xcuserdata
 .claude/worktrees
 build
 dist
+Config/Local.xcconfig

@@ -15,7 +15,7 @@ open MacSentry.xcodeproj
 ```
 
 - The Xcode project is generated from `project.yml`. Never edit `MacSentry.xcodeproj` by hand, and do not commit it (it is gitignored). Change `project.yml` and rerun `xcodegen generate`.
-- Set `DEVELOPMENT_TEAM` in `project.yml` to your own team (a free Apple ID team works) for local builds, and do not include that change in your PR. Full Disk Access is tied to the code signature, so keep signing with the same certificate or macOS forgets the grant.
+- A fresh clone builds ad hoc signed. To keep Full Disk Access across rebuilds, copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig` and set your own `DEVELOPMENT_TEAM` (a free Apple ID team works). It is gitignored. Full Disk Access is tied to the code signature, so keep signing with the same certificate or macOS forgets the grant.
 - The only third party dependency is [GRDB.swift](https://github.com/groue/GRDB.swift). Do not add others.
 
 ## Schemes: run against a fixture, not your home

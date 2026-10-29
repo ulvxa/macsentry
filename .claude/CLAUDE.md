@@ -42,7 +42,7 @@ Native macOS 26 disk cleanup app. Finds reclaimable files, moves them to a quara
 ## Notes
 - v0.1.0 shipped; original build plan and acceptance criteria in `docs/PHASES.md`. Contributor guide: `CONTRIBUTING.md`
 - Spotlight may be off or incomplete on a user's Mac: old/large age = newest of Spotlight date, modified, date added (never atime)
-- `DEVELOPMENT_TEAM` in `project.yml` is the maintainer's; set your own locally, don't commit it
+- Signing: `Config/Signing.xcconfig` defaults to ad hoc; the team lives in gitignored `Config/Local.xcconfig` (template: `Local.xcconfig.example`). Never put a team ID in `project.yml`
 - After merging agent worktrees, remove them (`git worktree remove --force`); `FixtureSweeper` clears test fixtures older than 30 min
 
 ## Agents

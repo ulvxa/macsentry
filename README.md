@@ -132,7 +132,7 @@ xcodegen generate
 open MacSentry.xcodeproj
 ```
 
-Set your own signing team in `project.yml` (`DEVELOPMENT_TEAM`) before building. Full Disk Access is tied to the code signature, so sign every build with the same certificate or macOS forgets the grant.
+A fresh clone builds ad hoc signed. Full Disk Access is tied to the code signature, so for day-to-day use copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig` and set your own `DEVELOPMENT_TEAM` (a free Apple ID team works). That file is gitignored.
 
 To try the app safely, run the **MacSentry Dev** scheme. It builds a fake home at `/tmp/macsentry-dev/root` and runs in dry run mode. The **MacSentry** scheme scans your real disk.
 

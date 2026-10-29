@@ -1,0 +1,5 @@
+// Ad hoc signing by default so a fresh clone builds. Config/Local.xcconfig (gitignored) overrides it.
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"

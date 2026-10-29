@@ -12,7 +12,7 @@ Onboarding sheet (shown on launch when missing, also from Settings):
 4. "Continue with limited scan" link, sets `limitedMode = true` and shows a toolbar badge
 
 ## Code Signing Note (personal build)
-Full Disk Access is tied to the code signature. Ad hoc signing changes every build and macOS forgets the grant. Sign every build with the same Apple Development certificate (free Apple ID team works) by setting `DEVELOPMENT_TEAM` and `CODE_SIGN_STYLE: Automatic` in `project.yml`. Hardened runtime on, sandbox off.
+Full Disk Access is tied to the code signature. Ad hoc signing changes every build and macOS forgets the grant. Sign every build with the same Apple Development certificate (free Apple ID team works) by setting `DEVELOPMENT_TEAM` in the gitignored `Config/Local.xcconfig` (copy `Config/Local.xcconfig.example`). `project.yml` loads it through `Config/Signing.xcconfig`, which falls back to ad hoc. Hardened runtime on, sandbox off.
 
 ## SettingsStore Keys (UserDefaults, `@AppStorage` in the app)
 | key | type | default | UI |
