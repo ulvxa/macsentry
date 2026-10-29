@@ -176,7 +176,8 @@ enum AppCacheFixture {
         "com.apple.foo/GPUCache",
     ].map { "\(support)/\($0)" } + [
         "Library/Caches/com.apple.Safari", "Library/Caches/CloudKit", "Library/Caches/GeoServices", "Library/Caches/GameKit",
-        "Library/Caches/icloudmailagent", "Library/Caches/Google", "Library/Containers/com.apple.Notes/Data/Library/Caches",
+        "Library/Caches/icloudmailagent", "Library/Caches/FamilyCircle", "Library/Caches/PassKit", "Library/Caches/Metal",
+        "Library/Caches/TemporaryItems", "Library/Caches/Google", "Library/Containers/com.apple.Notes/Data/Library/Caches",
         "Library/Containers/com.example.sandboxed/Data/Library", "Library/Containers/com.example.sandboxed",
         "\(support)/Caches/notion-updater/pending", "\(support)/Caches/other-folder",
     ]
@@ -202,7 +203,7 @@ struct AppScopeRuleTests {
     private typealias Fixture = AppCacheFixture
 
     private func engine(_ home: URL) throws -> DefaultRuleEngine {
-        try DefaultRuleEngine(catalog: .bundled(), homeURL: home, currentUID: Kit.userUID, now: { Kit.now }, allowlist: .bundled())
+        try DefaultRuleEngine(catalog: .bundled(), homeURL: home, currentUID: Kit.userUID, now: { Kit.now })
     }
 
     private func evaluate(_ engine: DefaultRuleEngine, _ url: URL, rules: CompiledRuleSet) -> RuleMatch? {
@@ -269,6 +270,25 @@ struct AppScopeRuleTests {
             #expect(try evaluate(engine, fixture.url(path), rules: rules)?.rule.id == ruleID, "\(path)")
         }
         #expect(try evaluate(engine, fixture.url("Library/Caches/Google"), rules: rules) == nil)
+    }
+
+    @Test func `shared vendor folders in Caches are caches, only Apple's own folders are skipped`() throws {
+        let fixture = try FixtureBuilder(name: "AppScope")
+        for name in ["JetBrains", "Code", "Python", "Microsoft", "com.crashlytics", "CloudKit", "GameKit", "Google/Chrome"] {
+            try fixture.folder("Library/Caches/\(name)")
+        }
+        let engine = try engine(fixture.root)
+        let rules = engine.compile(engine.activeRules(inventory: Fixture.inventory, existingPaths: Kit.liveExists))
+
+        for name in ["JetBrains", "Code", "Python", "Microsoft", "com.crashlytics"] {
+            let match = try evaluate(engine, fixture.url("Library/Caches/\(name)"), rules: rules)
+            #expect(match?.rule.id == "appcache.libraryFallback", "\(name)")
+        }
+        #expect(try evaluate(engine, fixture.url("Library/Caches/Code"), rules: rules)?.rule.group == "Visual Studio Code")
+        for name in ["CloudKit", "GameKit", "Google"] {
+            #expect(try evaluate(engine, fixture.url("Library/Caches/\(name)"), rules: rules) == nil, "\(name)")
+        }
+        #expect(try evaluate(engine, fixture.url("Library/Caches/Google/Chrome"), rules: rules)?.rule.id == "chrome.cache")
     }
 
     @Test func `turned off groups and an empty inventory are respected`() throws {

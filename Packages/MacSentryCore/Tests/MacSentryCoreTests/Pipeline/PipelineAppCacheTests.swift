@@ -10,6 +10,7 @@ struct PipelineAppCacheTests {
         let harness = try Harness("AppScope", apps: AppCacheFixture.inventory)
         try AppCacheFixture.buildRealMachine(harness.fixture)
         try harness.fixture.file("Library/Caches/Homebrew/downloads/blob", size: 4096)
+        try harness.fixture.file("Library/Caches/JetBrains/IntelliJIdea2025.1/index/blob", size: 4096)
 
         let summary = try await harness.scan()
         #expect(summary.status == .finished)
@@ -28,14 +29,18 @@ struct PipelineAppCacheTests {
             let candidate = try #require(found, "\(expected.path)")
             #expect(candidate.ruleID == expected.ruleID, "\(expected.path)")
             #expect(candidate.appBundleID == expected.bundleID, "\(expected.path)")
+            #expect(candidate.group == expected.group, "\(expected.path)")
             #expect(candidate.category == .appCache && candidate.tier == .green && candidate.action == .quarantine)
         }
         for (path, ruleID) in leftovers {
             #expect(byPath[harness.url(path).storagePath]?.first?.ruleID == ruleID, "\(path)")
         }
         #expect(byPath[harness.url("Library/Caches/Homebrew").storagePath]?.first?.ruleID == "homebrew.cache")
+        #expect(byPath[harness.url("Library/Caches/Homebrew").storagePath]?.first?.group == "Homebrew")
+        #expect(byPath[harness.url("Library/Caches/JetBrains").storagePath]?.first?.ruleID == "appcache.libraryFallback")
+        #expect(candidates.filter { $0.category == .orphan }.allSatisfy { $0.group == nil })
         for path in AppCacheFixture.neverMatched {
-            #expect(byPath[harness.url(path).storagePath] == nil, "\(path)")
+            #expect(byPath[harness.url(path).storagePath]?.first?.category != .appCache, "\(path)")
         }
 
         let paths = candidates.map(\.url.storagePath)
@@ -75,5 +80,32 @@ struct PipelineAppCacheTests {
         #expect(owned.appBundleID == nil)
         #expect(candidate("Library/Caches/CloudKit") == nil)
         #expect(!candidates.contains { $0.category == .orphan && $0.url.lastPathComponent == "NotionHelperData" })
+    }
+
+    @Test func `a recently used leftover the orphan pass skips is still claimed by the cache rules`() async throws {
+        let harness = try Harness("AppScopeRecent", apps: [AppCacheFixture.app("notion.id", "Notion")])
+        let fixture = harness.fixture
+        let support = AppCacheFixture.support
+        try fixture.file("\(support)/com.fake.recent/GPUCache/blob", size: 64 * 1024)
+        try fixture.file("\(support)/com.fake.recent/state.sqlite", size: 4096)
+        try fixture.file("Library/Caches/com.fake.recentcache/Cache.db", size: 4096)
+        try fixture.file("\(support)/com.fake.stale/GPUCache/blob", size: 64 * 1024)
+        try fixture.file("\(support)/com.fake.stale/state.sqlite", size: 4096, modified: Harness.old)
+
+        let summary = try await harness.scan()
+        let candidates = try await harness.candidates(summary.sessionID)
+        let byPath = Dictionary(uniqueKeysWithValues: candidates.map { ($0.url.storagePath, $0) })
+        func candidate(_ path: String) -> Candidate? {
+            byPath[harness.url(path).storagePath]
+        }
+
+        #expect(candidate("\(support)/com.fake.recent") == nil)
+        let gpu = try #require(candidate("\(support)/com.fake.recent/GPUCache"))
+        #expect(gpu.ruleID == "appcache.chromium")
+        #expect(gpu.group == AppScope.otherGroup)
+        #expect(gpu.appBundleID == "com.fake.recent")
+        #expect(candidate("Library/Caches/com.fake.recentcache")?.ruleID == "appcache.libraryFallback")
+        #expect(candidate("\(support)/com.fake.stale")?.category == .orphan)
+        #expect(candidate("\(support)/com.fake.stale/GPUCache") == nil)
     }
 }

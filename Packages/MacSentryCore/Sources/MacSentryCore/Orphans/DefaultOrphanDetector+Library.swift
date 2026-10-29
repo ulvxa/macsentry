@@ -136,6 +136,21 @@ extension DefaultOrphanDetector {
         .creationDateKey, .contentModificationDateKey,
     ]
 
+    static func item(at url: URL) -> LibraryItem? {
+        guard let values = try? url.resourceValues(forKeys: Set(resourceKeys)), values.isSymbolicLink != true else { return nil }
+        let isDirectory = values.isDirectory == true
+        return LibraryItem(
+            url: url,
+            name: url.lastPathComponent,
+            isDirectory: isDirectory,
+            isPackage: values.isPackage == true,
+            fileSize: Int64(values.fileSize ?? 0),
+            allocatedSize: Int64(values.totalFileAllocatedSize ?? 0),
+            created: values.creationDate,
+            modified: values.contentModificationDate,
+        )
+    }
+
     static func children(of folder: URL) -> [LibraryItem] {
         let urls = (try? FileManager.default.contentsOfDirectory(
             at: folder,

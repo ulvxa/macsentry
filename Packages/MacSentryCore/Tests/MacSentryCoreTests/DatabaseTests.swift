@@ -20,7 +20,30 @@ struct DatabaseTests {
                 "dir_node_parent", "candidate_session_cat", "candidate_session_path", "quarantine_entry_status",
             ]))
             #expect(try Bool.fetchOne(db, sql: "PRAGMA foreign_keys") == true)
-            #expect(try Migrations.migrator.appliedMigrations(db) == ["v1"])
+            #expect(try Migrations.migrator.appliedMigrations(db) == ["v1", "v2"])
+        }
+    }
+
+    @Test func `v2 adds a nullable rule group that old rows read as nil`() throws {
+        let queue = try DatabaseQueue()
+        try Migrations.migrator.migrate(queue, upTo: "v1")
+        try queue.write { db in
+            try db.execute(sql: "INSERT INTO scan_session (started_at, status, roots_json) VALUES (0, 'finished', '[]')")
+            try db.execute(sql: """
+            INSERT INTO candidate (session_id, path, kind, category, rule_id, tier, action, reason,
+              logical_size, allocated_size, freeable_size)
+            VALUES (1, '/old', 'folder', 'appCache', 'appcache.chromium', 'green', 'quarantine', 'x', 1, 1, 1)
+            """)
+        }
+        try Migrations.migrator.migrate(queue)
+        try queue.write { db in
+            #expect(try Candidate.fetchOne(db)?.group == nil)
+            var fresh = Candidate(
+                sessionID: 1, url: URL(filePath: "/new"), kind: .folder, category: .appCache, ruleID: "appcache.chromium",
+                tier: .green, action: .quarantine, reason: "x", logicalSize: 1, allocatedSize: 1, freeableSize: 1, group: "Notion",
+            )
+            try fresh.insert(db)
+            #expect(try Candidate.fetchOne(db, key: fresh.id)?.group == "Notion")
         }
     }
 

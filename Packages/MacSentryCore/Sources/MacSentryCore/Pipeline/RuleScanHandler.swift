@@ -57,6 +57,7 @@ final class RuleScanHandler: ScanEntryHandler {
             cliCommand: match.cliCommand(for: entry.url),
             appBundleID: match.rule.appBundleIDs.first,
             minFreeableSize: match.minFreeableSize,
+            group: match.rule.group,
         ))
     }
 }

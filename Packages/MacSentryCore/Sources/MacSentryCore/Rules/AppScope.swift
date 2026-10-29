@@ -10,7 +10,7 @@ public struct AppScope: Codable, Sendable, Hashable {
     public let childMarker: String?
     public let topNames: [String]?
     public let excludeTopPrefixes: [String]?
-    public let excludeSystemNames: Bool?
+    public let excludeTopNames: [String]?
     public let vendorFolders: Bool?
     /// Filled in by activeRules, never read from JSON: the lowercased `<top>` or `<top>/<second>` this copy covers.
     public let owner: String?
@@ -23,7 +23,7 @@ public struct AppScope: Codable, Sendable, Hashable {
         childMarker: String? = nil,
         topNames: [String]? = nil,
         excludeTopPrefixes: [String]? = nil,
-        excludeSystemNames: Bool? = nil,
+        excludeTopNames: [String]? = nil,
         vendorFolders: Bool? = nil,
         owner: String? = nil,
         attributed: Bool = false,
@@ -34,14 +34,14 @@ public struct AppScope: Codable, Sendable, Hashable {
         self.childMarker = childMarker
         self.topNames = topNames
         self.excludeTopPrefixes = excludeTopPrefixes
-        self.excludeSystemNames = excludeSystemNames
+        self.excludeTopNames = excludeTopNames
         self.vendorFolders = vendorFolders
         self.owner = owner
         self.attributed = attributed
     }
 
     enum CodingKeys: String, CodingKey, CaseIterable {
-        case root, names, maxDepth, childMarker, topNames, excludeTopPrefixes, excludeSystemNames, vendorFolders
+        case root, names, maxDepth, childMarker, topNames, excludeTopPrefixes, excludeTopNames, vendorFolders
     }
 
     public init(from decoder: any Decoder) throws {
@@ -53,7 +53,7 @@ public struct AppScope: Codable, Sendable, Hashable {
         childMarker = try container.decodeIfPresent(String.self, forKey: .childMarker)
         topNames = try container.decodeIfPresent([String].self, forKey: .topNames)
         excludeTopPrefixes = try container.decodeIfPresent([String].self, forKey: .excludeTopPrefixes)
-        excludeSystemNames = try container.decodeIfPresent(Bool.self, forKey: .excludeSystemNames)
+        excludeTopNames = try container.decodeIfPresent([String].self, forKey: .excludeTopNames)
         vendorFolders = try container.decodeIfPresent(Bool.self, forKey: .vendorFolders)
         owner = nil
         attributed = false
@@ -67,7 +67,7 @@ public struct AppScope: Codable, Sendable, Hashable {
             childMarker: childMarker,
             topNames: topNames,
             excludeTopPrefixes: excludeTopPrefixes,
-            excludeSystemNames: excludeSystemNames,
+            excludeTopNames: excludeTopNames,
             vendorFolders: vendorFolders,
             owner: owner.lowercased(),
             attributed: attributed,
@@ -94,9 +94,9 @@ public struct AppScope: Codable, Sendable, Hashable {
         default:
             break
         }
-        let literals = [childMarker].compactMap(\.self) + (topNames ?? [])
+        let literals = [childMarker].compactMap(\.self) + (topNames ?? []) + (excludeTopNames ?? [])
         if literals.contains(where: { $0.isEmpty || $0.contains("/") }) || childMarker?.contains("*") == true {
-            return "childMarker and topNames must be single names"
+            return "childMarker, topNames and excludeTopNames must be single names"
         }
         return nil
     }
@@ -192,7 +192,6 @@ extension DefaultRuleEngine {
         _ rule: Rule,
         scope: AppScope,
         attribution: AppAttribution,
-        systemNames: Set<String>,
         disabledGroups: Set<String>,
     ) -> [Rule] {
         let rootURL = URL(filePath: PathPattern.expand(scope.root, home: homePath), directoryHint: .isDirectory)
@@ -204,7 +203,7 @@ extension DefaultRuleEngine {
             let match = rule.match.with(paths: nil, referenceVersion: nil, appScope: scope.owned(by: owner, attributed: app != nil))
             rules.append(rule.with(group: group, match: match, appBundleIDs: bundleIDs))
         }
-        for top in fileSystem.contentsOfDirectory(rootURL).sorted() where Self.includes(top, in: scope, systemNames: systemNames) {
+        for top in fileSystem.contentsOfDirectory(rootURL).sorted() where Self.includes(top, in: scope) {
             if let app = attribution.app(top: top) {
                 add(top, app: app, top: top)
                 continue
@@ -222,13 +221,13 @@ extension DefaultRuleEngine {
         return rules
     }
 
-    private static func includes(_ top: String, in scope: AppScope, systemNames: Set<String>) -> Bool {
+    private static func includes(_ top: String, in scope: AppScope) -> Bool {
         let lower = top.lowercased()
         guard !lower.hasPrefix("."), !lower.contains("*") else { return false }
         if (scope.excludeTopPrefixes ?? []).contains(where: { lower.hasPrefix($0.lowercased()) }) {
             return false
         }
-        if scope.excludeSystemNames == true, systemNames.contains(where: { lower == $0 || lower.hasPrefix($0 + ".") }) {
+        if (scope.excludeTopNames ?? []).contains(where: { lower == $0.lowercased() || lower.hasPrefix($0.lowercased() + ".") }) {
             return false
         }
         guard let globs = scope.topNames else { return true }

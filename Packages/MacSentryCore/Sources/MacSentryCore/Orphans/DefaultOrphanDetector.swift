@@ -96,6 +96,24 @@ public struct DefaultOrphanDetector: OrphanDetector {
         return await orphanFinding(item, location: location, identity: identity, matcher: matcher).map { [$0] } ?? []
     }
 
+    /// Mirrors `evaluate` for one top level folder without sizing it: true when this pass will report the folder itself.
+    func wouldReport(_ folder: URL, location: OrphanLocation, matcher: OrphanMatcher) -> Bool {
+        guard let item = Self.item(at: folder), Self.accepts(item, in: location), isEligible(item.url) else { return false }
+        let identity = Self.resolveIdentity(of: item.url, name: item.name, in: location)
+        if matcher.isSystem(item.name) || matcher.isSystem(identity.value) {
+            return false
+        }
+        let inUse = Self.inspectUserData(item, location: location).isInUse(now: now())
+        if location.checksVersionFolders {
+            let parent = folder.deletingLastPathComponent().path(percentEncoded: false)
+            let siblings = ((try? FileManager.default.contentsOfDirectory(atPath: parent)) ?? []).filter { !$0.hasPrefix(".") }
+            if matcher.olderVersion(name: item.name, parent: nil, siblings: siblings) != nil {
+                return !inUse
+            }
+        }
+        return !Self.isOwned(identity, matcher: matcher, applicationURL: applicationURL) && !inUse
+    }
+
     private func isEligible(_ url: URL) -> Bool {
         policy.check(url) == .allowed && !isClaimedByRule(url)
     }

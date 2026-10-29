@@ -173,14 +173,14 @@ final class CandidateListModel {
         consumePendingSelection()
     }
 
-    private static func makeRows(_ candidates: [Candidate], grouped: Bool, groupName: (String) -> String) -> [CandidateRow] {
+    private static func makeRows(_ candidates: [Candidate], grouped: Bool, groupName: (Candidate) -> String) -> [CandidateRow] {
         guard grouped else {
-            return candidates.compactMap { CandidateRow(candidate: $0, group: groupName($0.ruleID)) }
+            return candidates.compactMap { CandidateRow(candidate: $0, group: groupName($0)) }
         }
         var order: [String] = []
         var buckets: [String: [CandidateRow]] = [:]
         for candidate in candidates {
-            let group = groupName(candidate.ruleID)
+            let group = groupName(candidate)
             guard let row = CandidateRow(candidate: candidate, group: group) else { continue }
             if buckets[group] == nil {
                 order.append(group)
@@ -194,7 +194,7 @@ final class CandidateListModel {
         guard let pending = app.pendingRowSelection, pending.item == configuration.item,
               let candidate = candidates.first(where: { $0.id == pending.candidateID }) else { return }
         app.pendingRowSelection = nil
-        collapsedGroups.remove(app.ruleGroup(for: candidate.ruleID))
+        collapsedGroups.remove(app.ruleGroup(for: candidate))
         focusedIDs = [.item(pending.candidateID)]
     }
 
@@ -217,7 +217,8 @@ final class CandidateListModel {
 
     func blockReason(_ candidate: Candidate) -> String? {
         guard isBlocked(candidate) else { return nil }
-        return "Quit \(app.ruleGroup(for: candidate.ruleID)) to quarantine this"
+        let group = app.ruleGroup(for: candidate)
+        return "Quit \(group == AppScope.otherGroup ? "the app that owns it" : group) to quarantine this"
     }
 
     func isCheckable(_ candidate: Candidate) -> Bool {

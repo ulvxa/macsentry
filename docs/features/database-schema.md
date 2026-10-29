@@ -122,6 +122,14 @@ CREATE TABLE disk_sample (
 );
 ```
 
+## Migration `v2`
+
+```sql
+ALTER TABLE candidate ADD COLUMN rule_group TEXT;  -- rule group, per app for app caches; NULL for older rows and non rule candidates
+```
+
+Never edit `v1`; add a new migration for every schema change.
+
 ## Retention
 - Keep the last 5 `scan_session` rows, cascade delete older ones on new scan start
 - `disk_sample` older than 90 days deleted on app launch

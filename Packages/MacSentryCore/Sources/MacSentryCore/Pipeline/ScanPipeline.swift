@@ -92,12 +92,7 @@ public struct ScanPipeline: Sendable {
     }
 
     public func activeRules(disabledGroups: Set<String> = []) async throws -> [Rule] {
-        let engine = try DefaultRuleEngine(
-            catalog: loadCatalog(),
-            homeURL: environment.homeURL,
-            fileSystem: ruleFileSystem,
-            allowlist: (try? SystemAllowlist.bundled()) ?? SystemAllowlist(entries: []),
-        )
+        let engine = try DefaultRuleEngine(catalog: loadCatalog(), homeURL: environment.homeURL, fileSystem: ruleFileSystem)
         return await engine.activeRules(
             inventory: inventory.installedApps(),
             disabledGroups: disabledGroups,
@@ -122,12 +117,7 @@ public struct ScanPipeline: Sendable {
             throw ScanPipelineError.catalogUnavailable(error.localizedDescription)
         }
         let apps = await inventory.installedApps()
-        let engine = DefaultRuleEngine(
-            catalog: catalog,
-            homeURL: environment.homeURL,
-            fileSystem: ruleFileSystem,
-            allowlist: allowlist,
-        )
+        let engine = DefaultRuleEngine(catalog: catalog, homeURL: environment.homeURL, fileSystem: ruleFileSystem)
         let rules = engine.compile(engine.activeRules(
             inventory: apps,
             disabledGroups: options.disabledGroups,
@@ -253,10 +243,19 @@ struct PreparedScan: Sendable {
 
 extension PreparedScan {
     func leftoverCheck(library: URL) -> @Sendable (URL) -> Bool {
+        let rules = rules
         let probe = LeftoverProbe(
             library: library,
             matcher: DefaultOrphanDetector.matcher(inventory: apps, helperBundleIDs: helperBundleIDs, allowlist: allowlist),
-            applicationURL: pipeline.applicationURL,
+            detector: DefaultOrphanDetector(
+                sessionID: 0,
+                allowlist: allowlist,
+                policy: pipeline.protection,
+                helperBundleIDs: helperBundleIDs,
+                applicationURL: pipeline.applicationURL,
+                isClaimedByRule: { rules.claims($0) },
+                folderSize: { _ in SizeInfo(logical: 0, allocated: 0, freeable: 0) },
+            ),
         )
         return { probe.isLeftover($0) }
     }

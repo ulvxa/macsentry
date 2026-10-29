@@ -32,17 +32,14 @@ struct OrphanScanHandler: ScanEntryHandler {
 struct LeftoverProbe: Sendable {
     let library: URL
     let matcher: OrphanMatcher
-    let applicationURL: DefaultOrphanDetector.ApplicationLookup
+    let detector: DefaultOrphanDetector
 
-    /// True when the orphan pass would report this `~/Library/<location>/<name>` folder as owned by no installed app.
+    /// True when the orphan pass will report this `~/Library/<location>/<name>` folder itself, recency and protection included.
     func isLeftover(_ folder: URL) -> Bool {
         let parent = folder.deletingLastPathComponent().storagePath
         guard let location = OrphanLocation.allCases.first(where: {
             library.appending(path: $0.folderName, directoryHint: .isDirectory).storagePath == parent
         }) else { return false }
-        let name = folder.lastPathComponent
-        let identity = DefaultOrphanDetector.resolveIdentity(of: folder, name: name, in: location)
-        guard !matcher.isSystem(name), !matcher.isSystem(identity.value) else { return false }
-        return !DefaultOrphanDetector.isOwned(identity, matcher: matcher, applicationURL: applicationURL)
+        return detector.wouldReport(folder, location: location, matcher: matcher)
     }
 }

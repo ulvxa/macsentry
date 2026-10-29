@@ -6,8 +6,16 @@ enum Migrations {
         migrator.registerMigration("v1") { db in
             try db.execute(sql: v1)
         }
+        migrator.registerMigration("v2") { db in
+            try db.execute(sql: v2)
+        }
         return migrator
     }
+
+    /// The rule group of the candidate (per app for app caches); nil for rows written before v2 and for non rule candidates.
+    static let v2 = """
+    ALTER TABLE candidate ADD COLUMN rule_group TEXT;
+    """
 
     static let v1 = """
     CREATE TABLE scan_session (

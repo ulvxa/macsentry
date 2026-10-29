@@ -198,6 +198,10 @@ final class AppModel {
         services?.ruleGroups[ruleID] ?? RuleGroups.fallback(for: ruleID)
     }
 
+    func ruleGroup(for candidate: Candidate) -> String {
+        candidate.group ?? ruleGroup(for: candidate.ruleID)
+    }
+
     func total(for item: SidebarItem) -> CategoryTotal? {
         guard currentSessionID != nil, let scope = item.scope else { return nil }
         return totals.total(categories: scope.categories, actions: scope.actions)

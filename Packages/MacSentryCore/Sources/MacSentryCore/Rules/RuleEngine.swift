@@ -144,7 +144,6 @@ public struct DefaultRuleEngine: RuleEngine {
     private let currentUID: uid_t
     private let now: @Sendable () -> Date
     let fileSystem: RuleFileSystem
-    private let allowlist: SystemAllowlist
 
     public init(
         catalog: RuleCatalog,
@@ -152,20 +151,17 @@ public struct DefaultRuleEngine: RuleEngine {
         currentUID: uid_t = getuid(),
         now: @escaping @Sendable () -> Date = { Date() },
         fileSystem: RuleFileSystem = .live,
-        allowlist: SystemAllowlist = SystemAllowlist(entries: []),
     ) {
         self.catalog = catalog
         homePath = PathPattern.homePath(homeURL)
         self.currentUID = currentUID
         self.now = now
         self.fileSystem = fileSystem
-        self.allowlist = allowlist
     }
 
     public func activeRules(inventory: [InstalledApp], disabledGroups: Set<String>, existingPaths: (URL) -> Bool) -> [Rule] {
         let installedIDs = Set(inventory.map(\.bundleID))
         let attribution = AppAttribution(inventory)
-        let systemNames = allowlist.activeNames(installedBundleIDs: installedIDs)
         var active: [Rule] = []
         var perApp: [Rule] = []
         for rule in catalog.rules where !disabledGroups.contains(rule.group) {
@@ -178,7 +174,6 @@ public struct DefaultRuleEngine: RuleEngine {
                     rule,
                     scope: scope,
                     attribution: attribution,
-                    systemNames: systemNames,
                     disabledGroups: disabledGroups,
                 )
                 continue
