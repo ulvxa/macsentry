@@ -203,6 +203,24 @@ Never matched: `Local Storage`, `IndexedDB`, `WebStorage`, `Session Storage`, `F
 | crashReports | `~/Library/Logs/DiagnosticReports` | green | Q | |
 | zoom.recordings | `~/Documents/Zoom/*` | red | Q | via old and large thresholds |
 
+### Catalog gaps (`catalog-gaps.json`)
+Found by surveying a real Mac against what the catalog missed. All Q rows claim the folder; `F` rows are flagOnly.
+| id | path | tier | act | notes |
+|---|---|---|---|---|
+| npm.npx | `~/.npm/_npx` | green | Q | |
+| puppeteer.browsers | `~/.cache/puppeteer` | yellow | Q | Chrome builds, redownload |
+| mongodb.binaries | `~/.cache/mongodb-binaries` | yellow | Q | |
+| huggingface.hub | `~/.cache/huggingface/hub` | yellow | Q | models redownload |
+| torch.hub | `~/.cache/torch` | yellow | Q | |
+| gradle.jdks | `~/.gradle/jdks` | yellow | Q | |
+| expo.caches | `~/.expo/{android-apk-cache,expo-go,ios-simulator-app-cache}` | yellow | Q | |
+| platformio.packages | `~/.platformio/packages/*` | yellow | Q | per package |
+| burp.updates | `~/.BurpSuite/updates/*` | yellow | Q | |
+| xcode.documentationCache | `~/Library/Developer/Xcode/DocumentationCache` | green | Q | quit Xcode |
+| android.ndk | `~/Library/Android/sdk/ndk/*` | yellow | F | `sdkmanager --uninstall "ndk;<version>"` |
+| android.buildTools | `~/Library/Android/sdk/build-tools/*` | yellow | F | `sdkmanager --uninstall "build-tools;<version>"` |
+| installers.dmg/pkg/ipsw/iso | `~/Downloads/*.<ext>` | yellow | Q | oldLarge, older than 14 days, files only |
+
 ## Edge Cases
 - Two rules match the same path: most specific path wins (longest literal prefix), ties go to higher tier severity (red over yellow over green)
 - Glob `*` matches one segment only, `**` is not allowed in rules (performance)

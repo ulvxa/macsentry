@@ -1,0 +1,288 @@
+[
+  {
+    "id": "npm.npx",
+    "group": "Node",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.npm/_npx"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Packages npx downloaded to run one-off commands. npx fetches them again when needed.",
+    "verify": false
+  },
+  {
+    "id": "puppeteer.browsers",
+    "group": "Node",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.cache/puppeteer"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Chrome builds downloaded by Puppeteer. They download again on the next run, which takes bandwidth.",
+    "verify": false
+  },
+  {
+    "id": "mongodb.binaries",
+    "group": "Node",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.cache/mongodb-binaries"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "MongoDB binaries downloaded for in-memory test servers. They download again on the next test run.",
+    "verify": false
+  },
+  {
+    "id": "huggingface.hub",
+    "group": "Python",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.cache/huggingface/hub"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Model and dataset downloads from Hugging Face. They download again on demand, which can be large.",
+    "verify": false
+  },
+  {
+    "id": "torch.hub",
+    "group": "Python",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.cache/torch"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "PyTorch pretrained weights and hub downloads. They download again on demand.",
+    "verify": false
+  },
+  {
+    "id": "gradle.jdks",
+    "group": "Gradle",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.gradle/jdks"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "JDKs Gradle toolchains downloaded. Gradle fetches them again when a build needs one.",
+    "verify": false
+  },
+  {
+    "id": "expo.caches",
+    "group": "Expo",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.expo/android-apk-cache",
+        "~/.expo/expo-go",
+        "~/.expo/ios-simulator-app-cache"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Expo Go builds and simulator apps Expo CLI downloaded. They download again the next time you launch a device.",
+    "verify": false
+  },
+  {
+    "id": "platformio.packages",
+    "group": "PlatformIO",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.platformio/packages/*"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Toolchain or framework package PlatformIO installed. PlatformIO downloads it again on the next build that needs it.",
+    "verify": false
+  },
+  {
+    "id": "burp.updates",
+    "group": "Burp Suite",
+    "category": "devCache",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/.BurpSuite/updates/*"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Downloaded Burp Suite update. Burp downloads it again when you update.",
+    "verify": false
+  },
+  {
+    "id": "xcode.documentationCache",
+    "group": "Xcode",
+    "category": "devCache",
+    "tier": "green",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Library/Developer/Xcode/DocumentationCache"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.apple.dt.Xcode"
+    ],
+    "requiresAppQuit": true,
+    "reason": "Xcode documentation cache. Xcode rebuilds it when you open documentation.",
+    "verify": false
+  },
+  {
+    "id": "android.ndk",
+    "group": "Android Studio",
+    "category": "flagged",
+    "tier": "yellow",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/Library/Android/sdk/ndk/*"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.google.android.studio"
+    ],
+    "requiresAppQuit": false,
+    "reason": "One installed NDK version. Uninstall versions your projects no longer use with sdkmanager.",
+    "cliCommand": "sdkmanager --list_installed  # then: sdkmanager --uninstall \"ndk;<version>\"",
+    "verify": false
+  },
+  {
+    "id": "android.buildTools",
+    "group": "Android Studio",
+    "category": "flagged",
+    "tier": "yellow",
+    "action": "flagOnly",
+    "match": {
+      "paths": [
+        "~/Library/Android/sdk/build-tools/*"
+      ],
+      "claimWholeFolder": true
+    },
+    "appBundleIDs": [
+      "com.google.android.studio"
+    ],
+    "requiresAppQuit": false,
+    "reason": "One installed build-tools version. Uninstall versions your projects no longer use with sdkmanager.",
+    "cliCommand": "sdkmanager --list_installed  # then: sdkmanager --uninstall \"build-tools;<version>\"",
+    "verify": false
+  },
+  {
+    "id": "installers.dmg",
+    "group": "Installers",
+    "category": "oldLarge",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Downloads/*.dmg"
+      ],
+      "minAgeDays": 14,
+      "claimWholeFolder": false
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Disk image installer in Downloads, older than 14 days. Download it again if you need it.",
+    "verify": false
+  },
+  {
+    "id": "installers.pkg",
+    "group": "Installers",
+    "category": "oldLarge",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Downloads/*.pkg"
+      ],
+      "minAgeDays": 14,
+      "claimWholeFolder": false
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Installer package in Downloads, older than 14 days. Download it again if you need it.",
+    "verify": false
+  },
+  {
+    "id": "installers.ipsw",
+    "group": "Installers",
+    "category": "oldLarge",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Downloads/*.ipsw"
+      ],
+      "minAgeDays": 14,
+      "claimWholeFolder": false
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "iOS firmware file in Downloads, older than 14 days. Download it again if you need it.",
+    "verify": false
+  },
+  {
+    "id": "installers.iso",
+    "group": "Installers",
+    "category": "oldLarge",
+    "tier": "yellow",
+    "action": "quarantine",
+    "match": {
+      "paths": [
+        "~/Downloads/*.iso"
+      ],
+      "minAgeDays": 14,
+      "claimWholeFolder": false
+    },
+    "appBundleIDs": [],
+    "requiresAppQuit": false,
+    "reason": "Disk image in Downloads, older than 14 days. Download it again if you need it.",
+    "verify": false
+  }
+]
